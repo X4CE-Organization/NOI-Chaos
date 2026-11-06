@@ -14,6 +14,7 @@ namespace NOIChaos.Editor
         public static void SetupProject()
         {
             Directory.CreateDirectory("Assets/Scenes");
+            EnsureRenderAssets();
             ConfigurePlayer();
             CreateMainScene();
             AssetDatabase.SaveAssets();
@@ -24,6 +25,7 @@ namespace NOIChaos.Editor
         [MenuItem("NOI Chaos/Build macOS Smoke Test")]
         public static void BuildMacSmokeTest()
         {
+            EnsureRenderAssets();
             Directory.CreateDirectory("Builds/Smoke");
             BuildPlayerOptions options = new BuildPlayerOptions
             {
@@ -44,6 +46,7 @@ namespace NOIChaos.Editor
         [MenuItem("NOI Chaos/Build macOS App")]
         public static void BuildMacApp()
         {
+            EnsureRenderAssets();
             Directory.CreateDirectory("Builds/macOS");
             BuildPlayerOptions options = new BuildPlayerOptions
             {
@@ -59,6 +62,76 @@ namespace NOIChaos.Editor
                 throw new IOException("macOS build failed: " + report.summary.result);
             }
             Debug.Log("[NOI Chaos] macOS build complete: " + options.locationPathName);
+        }
+
+        private static void EnsureRenderAssets()
+        {
+            Directory.CreateDirectory("Assets/Resources/NOI");
+            EnsureMaterialAsset(
+                "Assets/Resources/NOI/Standard.mat",
+                Shader.Find("Standard"),
+                "NOI Standard Template");
+            EnsureMaterialAsset(
+                "Assets/Resources/NOI/Particle.mat",
+                Shader.Find("Particles/Standard Unlit"),
+                "NOI Particle Template");
+            EnsureAlwaysIncludedShader(Shader.Find("Standard"));
+            EnsureAlwaysIncludedShader(Shader.Find("Particles/Standard Unlit"));
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
+        private static void EnsureMaterialAsset(string path, Shader shader, string materialName)
+        {
+            if (shader == null)
+            {
+                throw new IOException("Required shader was not found while creating " + path);
+            }
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(shader) { name = materialName };
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                EditorUtility.SetDirty(material);
+            }
+        }
+
+        private static void EnsureAlwaysIncludedShader(Shader shader)
+        {
+            if (shader == null)
+            {
+                return;
+            }
+
+            Object[] settingsAssets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (settingsAssets.Length == 0)
+            {
+                return;
+            }
+
+            SerializedObject graphicsSettings = new SerializedObject(settingsAssets[0]);
+            SerializedProperty includedShaders = graphicsSettings.FindProperty("m_AlwaysIncludedShaders");
+            if (includedShaders == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < includedShaders.arraySize; i++)
+            {
+                if (includedShaders.GetArrayElementAtIndex(i).objectReferenceValue == shader)
+                {
+                    return;
+                }
+            }
+
+            includedShaders.InsertArrayElementAtIndex(includedShaders.arraySize);
+            includedShaders.GetArrayElementAtIndex(includedShaders.arraySize - 1).objectReferenceValue = shader;
+            graphicsSettings.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void ConfigurePlayer()

@@ -6,6 +6,12 @@
 
 本项目由 **X4CE** 于 **2026 年** 开始开发，以 MIT License 开源。
 
+## 实际画面
+
+![NOI 乱斗主菜单](Docs/Screenshots/title.png)
+
+![考场探索画面](Docs/Screenshots/game.png)
+
 ## 当前可玩内容
 
 - 第三人称自由移动、奔跑、跳跃、蹲伏和镜头环绕

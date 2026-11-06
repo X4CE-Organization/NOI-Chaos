@@ -104,17 +104,7 @@ namespace NOIChaos
 
         private static Material CreateMaterial(Color color)
         {
-            Shader shader = Shader.Find("Standard");
-            if (shader == null)
-            {
-                return null;
-            }
-            Material material = new Material(shader);
-            material.color = color;
-            material.EnableKeyword("_EMISSION");
-            material.SetColor("_EmissionColor", color * 2.5f);
-            material.SetFloat("_Glossiness", 0.1f);
-            return material;
+            return RenderAssets.CreateStandard(color, 0.1f, 0.1f, 2.5f);
         }
     }
 }

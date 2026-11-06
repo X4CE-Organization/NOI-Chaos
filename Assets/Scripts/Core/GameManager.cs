@@ -1,4 +1,5 @@
 using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -58,6 +59,10 @@ namespace NOIChaos
                 smokeTest = true;
                 smokeTestStartedAt = Time.realtimeSinceStartup;
                 StartCoroutine(RunSmokeTest());
+            }
+            else if (HasCommandLineArgument("-noiScreenshotTest"))
+            {
+                StartCoroutine(RunScreenshotTest());
             }
         }
 
@@ -380,6 +385,55 @@ namespace NOIChaos
                 Debug.LogError("[NOI SmokeTest] FAIL - victory flow did not complete.");
                 Application.Quit(1);
             }
+        }
+
+        private IEnumerator RunScreenshotTest()
+        {
+            Screen.SetResolution(1600, 900, false);
+            yield return new WaitForSecondsRealtime(2f);
+            yield return CapturePng("/tmp/noi-title.png");
+            yield return new WaitForSecondsRealtime(1.2f);
+
+            StartGame();
+            yield return new WaitForSecondsRealtime(2.2f);
+            yield return CapturePng("/tmp/noi-game.png");
+            yield return new WaitForSecondsRealtime(1.2f);
+
+            Debug.Log($"[NOI ScreenshotTest] Complete at {Screen.width}x{Screen.height}; graphics={SystemInfo.graphicsDeviceName}.");
+            Application.Quit(0);
+        }
+
+        private IEnumerator CapturePng(string path)
+        {
+            yield return new WaitForEndOfFrame();
+            const int width = 1600;
+            const int height = 900;
+            Camera captureCamera = PlayerCamera.GetComponent<Camera>();
+            Canvas uiCanvas = UI.Canvas;
+            RenderTexture previousTarget = captureCamera.targetTexture;
+            RenderMode previousMode = uiCanvas.renderMode;
+            Camera previousUiCamera = uiCanvas.worldCamera;
+
+            RenderTexture renderTexture = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
+            captureCamera.targetTexture = renderTexture;
+            uiCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+            uiCanvas.worldCamera = captureCamera;
+            uiCanvas.planeDistance = 0.35f;
+            captureCamera.Render();
+
+            RenderTexture previousActive = RenderTexture.active;
+            RenderTexture.active = renderTexture;
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGB24, false);
+            texture.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+            texture.Apply();
+            File.WriteAllBytes(path, texture.EncodeToPNG());
+
+            RenderTexture.active = previousActive;
+            captureCamera.targetTexture = previousTarget;
+            uiCanvas.renderMode = previousMode;
+            uiCanvas.worldCamera = previousUiCamera;
+            RenderTexture.ReleaseTemporary(renderTexture);
+            Destroy(texture);
         }
 
         private static bool HasCommandLineArgument(string expected)

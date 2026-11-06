@@ -35,6 +35,7 @@ namespace NOIChaos
         private bool initialized;
 
         public bool IsNotebookOpen => notebookRoot != null && notebookRoot.activeSelf;
+        public Canvas Canvas => canvas;
 
         public void Initialize(GameManager manager)
         {
@@ -280,72 +281,228 @@ namespace NOIChaos
 
         private void BuildTitle()
         {
-            titleRoot = CreateFullPanel("Title screen", canvas.transform, new Color(0.012f, 0.023f, 0.04f, 0.96f));
+            titleRoot = CreateFullPanel("Title screen", canvas.transform, Color.white);
+            ApplyTitleBackdrop(titleRoot);
+            CreatePanel(
+                "Left editorial panel",
+                titleRoot.transform,
+                new Color(0.018f, 0.033f, 0.048f, 0.42f),
+                new Vector2(0f, 0f),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 0.5f),
+                Vector2.zero,
+                new Vector2(1160f, 0f));
+            CreatePanel(
+                "Gold signature",
+                titleRoot.transform,
+                new Color(1f, 0.63f, 0.14f, 1f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(92f, 0f),
+                new Vector2(7f, 610f));
+            CreatePanel(
+                "Top hairline",
+                titleRoot.transform,
+                new Color(0.23f, 0.84f, 0.79f, 0.5f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(0f, -38f),
+                new Vector2(-240f, 1f));
 
-            CreatePanel("Gold rail", titleRoot.transform, new Color(1f, 0.64f, 0.14f, 1f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(150f, -140f));
-            CreatePanel("Teal rail", titleRoot.transform, new Color(0.12f, 0.88f, 0.82f, 0.92f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-120f, 0f), new Vector2(3f, -220f));
+            Text brand = CreateText("Brand", titleRoot.transform, "X4CE  /  OPEN SOURCE  /  BUILD 0.2", 18, new Color(0.39f, 0.86f, 0.82f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(brand.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(132f, -78f), new Vector2(760f, 32f));
+            Text edition = CreateText("Edition", titleRoot.transform, "NOI 2026  ·  CAMPUS INCIDENT FILE", 17, new Color(0.6f, 0.65f, 0.67f), TextAnchor.MiddleRight);
+            Place(edition.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-118f, -78f), new Vector2(620f, 32f));
 
-            Text brand = CreateText("Brand", titleRoot.transform, "X4CE  //  OPEN SOURCE GAME EXPERIMENT", 22, new Color(0.47f, 0.92f, 0.88f), TextAnchor.MiddleLeft);
-            Place(brand.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180f, -88f), new Vector2(850f, 42f));
+            Text kicker = CreateText("Kicker", titleRoot.transform, "考场潜行喜剧", 24, new Color(0.72f, 0.79f, 0.8f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(kicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, 220f), new Vector2(430f, 36f));
 
-            Text year = CreateText("Year", titleRoot.transform, "NOI  //  2026", 22, new Color(1f, 0.69f, 0.21f), TextAnchor.MiddleRight);
-            Place(year.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-150f, -88f), new Vector2(420f, 42f));
-
-            Text kicker = CreateText("Kicker", titleRoot.transform, "考场潜行喜剧  /  THIRD-PERSON HEIST", 26, new Color(0.66f, 0.75f, 0.79f), TextAnchor.MiddleLeft);
-            Place(kicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(180f, 205f), new Vector2(1000f, 42f));
-
-            Text title = CreateText("Title", titleRoot.transform, "NOI 乱斗", 112, new Color(1f, 0.69f, 0.19f), TextAnchor.MiddleLeft, FontStyle.Bold);
-            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(174f, 95f), new Vector2(1050f, 190f));
+            Text title = CreateText("Title", titleRoot.transform, "NOI 乱斗", 108, new Color(1f, 0.69f, 0.19f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(126f, 108f), new Vector2(990f, 170f));
             Outline titleOutline = title.gameObject.AddComponent<Outline>();
-            titleOutline.effectColor = new Color(0.16f, 0.07f, 0.02f, 0.9f);
-            titleOutline.effectDistance = new Vector2(4f, -5f);
+            titleOutline.effectColor = new Color(0.12f, 0.05f, 0.01f, 0.8f);
+            titleOutline.effectDistance = new Vector2(3f, -4f);
+
+            CreatePanel(
+                "Title underline",
+                titleRoot.transform,
+                new Color(0.23f, 0.84f, 0.79f, 0.72f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(132f, 8f),
+                new Vector2(655f, 2f));
 
             Text subtitle = CreateText(
                 "Subtitle",
                 titleRoot.transform,
-                "第一题已经 Accepted。\n第二题不会做，但金牌还得拿。",
-                35,
-                new Color(0.88f, 0.91f, 0.91f),
+                "第一题已经 Accepted。第二题不会做，但金牌还得拿。\n在监考视线之间，把歪招变成正解。",
+                28,
+                new Color(0.85f, 0.89f, 0.89f),
                 TextAnchor.UpperLeft);
-            Place(subtitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -70f), new Vector2(900f, 130f));
+            subtitle.lineSpacing = 1.25f;
+            Place(subtitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -82f), new Vector2(760f, 112f));
 
-            Button startButton = CreateButton("Start button", titleRoot.transform, "进入考场  /  ENTER", new Vector2(330f, 72f), new Color(0.95f, 0.58f, 0.12f), new Color(0.04f, 0.055f, 0.07f));
-            Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -220f), new Vector2(330f, 72f));
+            Button startButton = CreateButton("Start button", titleRoot.transform, "进入考场  /  ENTER", new Vector2(360f, 72f), new Color(0.95f, 0.58f, 0.12f), new Color(0.035f, 0.05f, 0.065f));
+            Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -205f), new Vector2(360f, 72f));
             startButton.onClick.AddListener(game.StartGame);
+
+            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   鼠标观察   ·   E 交互", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
+            Place(startHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -270f), new Vector2(680f, 32f));
 
             Text disclaimer = CreateText(
                 "Disclaimer",
                 titleRoot.transform,
-                "虚构考场 · 荒诞潜行 · 不鼓励现实作弊\n程序化美术与音效 · 无外部素材依赖",
-                20,
-                new Color(0.5f, 0.59f, 0.63f),
+                "虚构考场 · 荒诞潜行 · 不鼓励现实作弊\n所有场景、角色与音效均在运行时生成",
+                17,
+                new Color(0.42f, 0.49f, 0.51f),
                 TextAnchor.UpperLeft);
-            Place(disclaimer.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -290f), new Vector2(620f, 80f));
+            Place(disclaimer.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -334f), new Vector2(760f, 62f));
 
-            CreateFeatureCard("Card 01", titleRoot.transform, "01", "观察", "记下监考路线\n利用视野盲区", new Vector2(0.64f, 0.5f));
-            CreateFeatureCard("Card 02", titleRoot.transform, "02", "交互", "广播、咖啡、灯光\n每个按钮都有后果", new Vector2(0.76f, 0.5f));
-            CreateFeatureCard("Card 03", titleRoot.transform, "03", "推理", "收集 3 条灵感\n把歪招变成正解", new Vector2(0.88f, 0.5f));
+            BuildContestFilePanel(titleRoot.transform);
 
             Text footer = CreateText(
                 "Footer",
                 titleRoot.transform,
                 "Copyright © 2026 X4CE   ·   MIT License   ·   Unity 2022.3",
-                18,
-                new Color(0.42f, 0.49f, 0.52f),
+                16,
+                new Color(0.37f, 0.43f, 0.45f),
                 TextAnchor.MiddleLeft);
-            Place(footer.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(180f, 62f), new Vector2(1000f, 40f));
+            Place(footer.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(132f, 55f), new Vector2(800f, 30f));
         }
 
-        private void CreateFeatureCard(string objectName, Transform parent, string number, string heading, string body, Vector2 anchor)
+        private void ApplyTitleBackdrop(GameObject root)
         {
-            GameObject card = CreatePanel(objectName, parent, new Color(0.04f, 0.075f, 0.105f, 0.9f), anchor, anchor, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220f, 250f));
-            Place(card.GetComponent<RectTransform>(), anchor, anchor, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220f, 250f));
-            Text numberText = CreateText("Number", card.transform, number, 23, new Color(1f, 0.67f, 0.17f), TextAnchor.UpperLeft, FontStyle.Bold);
-            Stretch(numberText.rectTransform, 22f, 22f, 20f, 16f);
-            Text headingText = CreateText("Heading", card.transform, heading, 32, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
-            Place(headingText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -72f), new Vector2(176f, 44f));
-            Text bodyText = CreateText("Body", card.transform, body, 20, new Color(0.62f, 0.7f, 0.73f), TextAnchor.UpperLeft);
-            Place(bodyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -126f), new Vector2(176f, 90f));
+            const int textureWidth = 320;
+            const int textureHeight = 180;
+            Texture2D texture = new Texture2D(textureWidth, textureHeight, TextureFormat.RGBA32, false);
+            texture.name = "NOI title backdrop";
+
+            Color baseColor = new Color(0.006f, 0.014f, 0.024f, 1f);
+            Color tealColor = new Color(0.018f, 0.095f, 0.1f, 1f);
+            for (int y = 0; y < textureHeight; y++)
+            {
+                float v = y / (float)(textureHeight - 1);
+                for (int x = 0; x < textureWidth; x++)
+                {
+                    float u = x / (float)(textureWidth - 1);
+                    float horizontal = Mathf.SmoothStep(0f, 1f, u) * 0.34f;
+                    float glowX = (u - 0.78f) * 2.2f;
+                    float glowY = (v - 0.46f) * 1.55f;
+                    float glow = Mathf.Exp(-(glowX * glowX + glowY * glowY) * 2.8f) * 0.45f;
+                    float scan = Mathf.Sin((u * 160f + v * 42f) * Mathf.PI) * 0.003f;
+                    Color color = Color.Lerp(baseColor, tealColor, horizontal + glow);
+                    color.r += scan;
+                    color.g += scan;
+                    color.b += scan;
+                    color.a = 1f;
+                    texture.SetPixel(x, y, color);
+                }
+            }
+            texture.Apply();
+
+            Image background = root.GetComponent<Image>();
+            background.sprite = Sprite.Create(texture, new Rect(0f, 0f, textureWidth, textureHeight), new Vector2(0.5f, 0.5f));
+            background.type = Image.Type.Simple;
+            background.color = Color.white;
+
+            for (int i = 1; i < 12; i++)
+            {
+                Image vertical = CreateImage("Backdrop vertical", root.transform, new Color(0.2f, 0.78f, 0.75f, 0.035f));
+                Place(
+                    vertical.rectTransform,
+                    new Vector2(i / 12f, 0f),
+                    new Vector2(i / 12f, 1f),
+                    new Vector2(0.5f, 0.5f),
+                    Vector2.zero,
+                    new Vector2(1f, 0f));
+                vertical.raycastTarget = false;
+            }
+            for (int i = 1; i < 8; i++)
+            {
+                Image horizontalLine = CreateImage("Backdrop horizontal", root.transform, new Color(0.2f, 0.78f, 0.75f, 0.025f));
+                Place(
+                    horizontalLine.rectTransform,
+                    new Vector2(0f, i / 8f),
+                    new Vector2(1f, i / 8f),
+                    new Vector2(0.5f, 0.5f),
+                    Vector2.zero,
+                    new Vector2(0f, 1f));
+                horizontalLine.raycastTarget = false;
+            }
+        }
+
+        private void BuildContestFilePanel(Transform parent)
+        {
+            GameObject filePanel = CreatePanel(
+                "Contest file",
+                parent,
+                new Color(0.018f, 0.038f, 0.054f, 0.94f),
+                new Vector2(0.77f, 0.5f),
+                new Vector2(0.77f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(468f, 610f));
+            CreatePanel(
+                "File accent",
+                filePanel.transform,
+                new Color(0.95f, 0.59f, 0.14f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0.5f, 1f),
+                Vector2.zero,
+                new Vector2(0f, 4f));
+
+            Text header = CreateText("File header", filePanel.transform, "CONTEST FILE  /  2026", 18, new Color(0.4f, 0.85f, 0.81f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(header.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -34f), new Vector2(300f, 28f));
+            Text clearance = CreateText("Clearance", filePanel.transform, "PUBLIC", 15, new Color(1f, 0.67f, 0.18f), TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(clearance.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-32f, -34f), new Vector2(100f, 28f));
+            CreateLine(filePanel.transform, new Vector2(32f, -66f), 404f, new Color(0.18f, 0.3f, 0.36f, 0.8f));
+
+            Text candidateLabel = CreateText("Candidate label", filePanel.transform, "CANDIDATE", 15, new Color(0.42f, 0.5f, 0.53f), TextAnchor.MiddleLeft);
+            Place(candidateLabel.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -92f), new Vector2(180f, 24f));
+            Text candidate = CreateText("Candidate", filePanel.transform, "X4CE", 31, Color.white, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(candidate.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -122f), new Vector2(240f, 42f));
+            Text rank = CreateText("Rank", filePanel.transform, "047", 74, new Color(1f, 0.68f, 0.18f), TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(rank.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-32f, -112f), new Vector2(170f, 88f));
+
+            CreateLine(filePanel.transform, new Vector2(32f, -185f), 404f, new Color(0.12f, 0.21f, 0.26f, 0.85f));
+            CreateFileRow(filePanel.transform, "TASK 01", "Accepted", new Color(0.32f, 0.91f, 0.68f), -218f);
+            CreateFileRow(filePanel.transform, "TASK 02", "Pending", new Color(1f, 0.67f, 0.18f), -267f);
+            CreateFileRow(filePanel.transform, "GOLD LINE", "Rank 003", new Color(1f, 0.39f, 0.28f), -316f);
+            CreateLine(filePanel.transform, new Vector2(32f, -365f), 404f, new Color(0.12f, 0.21f, 0.26f, 0.85f));
+
+            Text summaryLabel = CreateText("Summary label", filePanel.transform, "CURRENT MISSION", 15, new Color(0.42f, 0.5f, 0.53f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(summaryLabel.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -392f), new Vector2(240f, 24f));
+            Text summary = CreateText(
+                "Summary",
+                filePanel.transform,
+                "保持低调，收集三条灵感。\n在交卷铃响之前提交第二题。",
+                21,
+                new Color(0.78f, 0.84f, 0.85f),
+                TextAnchor.UpperLeft);
+            summary.lineSpacing = 1.3f;
+            Place(summary.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -428f), new Vector2(404f, 82f));
+
+            Text footer = CreateText("File footer", filePanel.transform, "NOI CAMPUS DIVISION  ·  RUNTIME GENERATED", 13, new Color(0.32f, 0.42f, 0.46f), TextAnchor.MiddleLeft);
+            Place(footer.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(32f, 26f), new Vector2(404f, 22f));
+        }
+
+        private void CreateFileRow(Transform parent, string label, string value, Color valueColor, float top)
+        {
+            Text key = CreateText("File row " + label, parent, label, 15, new Color(0.43f, 0.52f, 0.55f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(key.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, top), new Vector2(180f, 26f));
+            Text result = CreateText("File value " + label, parent, value, 18, valueColor, TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(result.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-32f, top), new Vector2(220f, 26f));
+        }
+
+        private void CreateLine(Transform parent, Vector2 position, float width, Color color)
+        {
+            Image line = CreateImage("Divider", parent, color);
+            Place(line.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), position, new Vector2(width, 1f));
+            line.raycastTarget = false;
         }
 
         private void BuildHUD()

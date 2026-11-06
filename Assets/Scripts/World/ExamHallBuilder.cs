@@ -13,14 +13,14 @@ namespace NOIChaos
         private static readonly List<Light> CeilingLights = new List<Light>();
         private static Transform clockHand;
 
-        private static readonly Color Ink = new Color(0.035f, 0.055f, 0.085f);
+        private static readonly Color Ink = new Color(0.045f, 0.07f, 0.105f);
         private static readonly Color DeepBlue = new Color(0.045f, 0.12f, 0.22f);
         private static readonly Color Teal = new Color(0.04f, 0.62f, 0.65f);
         private static readonly Color Cyan = new Color(0.24f, 0.96f, 0.92f);
         private static readonly Color Gold = new Color(1f, 0.67f, 0.15f);
         private static readonly Color Cream = new Color(0.82f, 0.79f, 0.68f);
-        private static readonly Color WarmWall = new Color(0.26f, 0.25f, 0.23f);
-        private static readonly Color DeskBlue = new Color(0.07f, 0.12f, 0.18f);
+        private static readonly Color WarmWall = new Color(0.33f, 0.31f, 0.28f);
+        private static readonly Color DeskBlue = new Color(0.09f, 0.14f, 0.21f);
 
         public static ExamHallWorld Build(GameManager manager)
         {
@@ -53,18 +53,18 @@ namespace NOIChaos
         {
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.012f;
+            RenderSettings.fogDensity = 0.009f;
             RenderSettings.fogColor = new Color(0.035f, 0.06f, 0.09f);
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.19f, 0.23f, 0.29f);
+            RenderSettings.ambientLight = new Color(0.3f, 0.34f, 0.4f);
             RenderSettings.reflectionIntensity = 0.35f;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
         }
 
         private static void BuildRoom()
         {
-            CreateCube("Floor", new Vector3(0f, -0.16f, 0f), new Vector3(30f, 0.32f, 21f), new Color(0.075f, 0.09f, 0.12f), true, 0.24f, 0.06f);
-            CreateCube("Ceiling", new Vector3(0f, 5.55f, 0f), new Vector3(30f, 0.22f, 21f), new Color(0.06f, 0.07f, 0.09f), true, 0.1f, 0.02f);
+            CreateCube("Floor", new Vector3(0f, -0.16f, 0f), new Vector3(30f, 0.32f, 21f), new Color(0.1f, 0.12f, 0.16f), true, 0.24f, 0.06f);
+            CreateCube("Ceiling", new Vector3(0f, 5.55f, 0f), new Vector3(30f, 0.22f, 21f), new Color(0.08f, 0.09f, 0.11f), true, 0.1f, 0.02f);
             CreateCube("Back wall", new Vector3(0f, 2.7f, 10.35f), new Vector3(30f, 5.5f, 0.28f), WarmWall, true, 0.05f, 0.03f);
             CreateCube("Front wall", new Vector3(0f, 2.7f, -10.35f), new Vector3(30f, 5.5f, 0.28f), WarmWall * 0.82f, true, 0.04f, 0.02f);
             CreateCube("Left wall", new Vector3(-14.85f, 2.7f, 0f), new Vector3(0.3f, 5.5f, 21f), WarmWall * 0.9f, true, 0.03f, 0.02f);
@@ -124,7 +124,7 @@ namespace NOIChaos
             Light directional = directionalObject.AddComponent<Light>();
             directional.type = LightType.Directional;
             directional.color = new Color(0.7f, 0.83f, 1f);
-            directional.intensity = 0.55f;
+            directional.intensity = 0.8f;
             directional.shadows = LightShadows.Soft;
             directional.shadowStrength = 0.75f;
             directionalObject.transform.rotation = Quaternion.Euler(38f, 128f, 0f);
@@ -137,9 +137,9 @@ namespace NOIChaos
                 lightObject.transform.position = new Vector3(x, 4.85f, i % 2 == 0 ? -2.2f : 2.6f);
                 Light light = lightObject.AddComponent<Light>();
                 light.type = LightType.Point;
-                light.range = 8.5f;
-                light.intensity = 1.55f;
-                light.color = new Color(1f, 0.79f, 0.55f);
+                light.range = 9.5f;
+                light.intensity = 2.1f;
+                light.color = new Color(1f, 0.82f, 0.61f);
                 light.shadows = LightShadows.Soft;
                 light.shadowStrength = 0.5f;
                 light.shadowBias = 0.04f;
@@ -621,10 +621,10 @@ namespace NOIChaos
             shape.shapeType = ParticleSystemShapeType.Box;
             shape.scale = new Vector3(25f, 4.8f, 18f);
             ParticleSystemRenderer renderer = dustObject.GetComponent<ParticleSystemRenderer>();
-            Shader particleShader = Shader.Find("Particles/Standard Unlit");
-            if (particleShader != null)
+            Material particleMaterial = RenderAssets.CreateParticleMaterial(new Color(0.75f, 0.85f, 1f, 0.25f));
+            if (particleMaterial != null)
             {
-                renderer.material = new Material(particleShader) { color = new Color(0.75f, 0.85f, 1f, 0.25f) };
+                renderer.material = particleMaterial;
             }
             particles.Play();
         }
@@ -734,22 +734,12 @@ namespace NOIChaos
                 return existing;
             }
 
-            Shader shader = Shader.Find("Standard");
-            if (shader == null)
+            Material material = RenderAssets.CreateStandard(color, metallic, gloss, emission);
+            if (material == null)
             {
                 return null;
             }
-
-            Material material = new Material(shader);
             material.name = "NOI runtime material";
-            material.color = color;
-            material.SetFloat("_Metallic", metallic);
-            material.SetFloat("_Glossiness", gloss);
-            if (emission > 0f)
-            {
-                material.EnableKeyword("_EMISSION");
-                material.SetColor("_EmissionColor", color * emission);
-            }
             MaterialCache[key] = material;
             return material;
         }

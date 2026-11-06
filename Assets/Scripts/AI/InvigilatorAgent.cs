@@ -357,12 +357,11 @@ namespace NOIChaos
             mesh.RecalculateNormals();
             filter.sharedMesh = mesh;
 
-            Shader shader = Shader.Find("Standard");
-            if (shader == null)
+            coneMaterial = RenderAssets.CreateStandard(patrolConeColor, 0f, 0.05f, 1.3f);
+            if (coneMaterial == null)
             {
                 return;
             }
-            coneMaterial = new Material(shader);
             coneMaterial.name = "Vision cone material";
             coneMaterial.color = patrolConeColor;
             coneMaterial.SetFloat("_Mode", 3f);
@@ -394,13 +393,11 @@ namespace NOIChaos
             }
 
             Renderer renderer = part.GetComponent<Renderer>();
-            Shader shader = Shader.Find("Standard");
-            if (shader == null)
+            Material material = RenderAssets.CreateStandard(color, 0.08f, 0.25f);
+            if (material == null)
             {
                 return part.transform;
             }
-            Material material = new Material(shader) { color = color };
-            material.SetFloat("_Glossiness", 0.25f);
             renderer.material = material;
             return part.transform;
         }

@@ -321,14 +321,11 @@ namespace NOIChaos
             }
 
             Renderer renderer = part.GetComponent<Renderer>();
-            Shader shader = Shader.Find("Standard");
-            if (shader == null)
+            Material material = RenderAssets.CreateStandard(color, 0.05f, type == PrimitiveType.Sphere ? 0.55f : 0.2f);
+            if (material != null)
             {
-                return part.transform;
+                renderer.material = material;
             }
-            Material material = new Material(shader) { color = color };
-            material.SetFloat("_Glossiness", type == PrimitiveType.Sphere ? 0.55f : 0.2f);
-            renderer.material = material;
             return part.transform;
         }
     }
