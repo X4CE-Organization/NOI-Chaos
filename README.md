@@ -144,6 +144,8 @@ UNITY="/Applications/Unity/Hub/Editor/2022.3.62f3c1/Unity.app/Contents/MacOS/Uni
 
 ### C++14 本地编译考试
 
+完整安装步骤见：[macOS / Windows 编译器配置](Docs/COMPILER_SETUP.md)。
+
 - 每题有 8 组预生成测试，每局随机抽取 5 组，每组 20 分。
 - 每题最多 100 分，三题总分最高 300 分。
 - 每局随机生成奖牌线：金牌线 200–260，银牌线 130–180，铜牌线 70–120。
@@ -174,13 +176,7 @@ python3 Tools/ExamData/build_exam_data.py
 
 生成脚本会使用 `clang++ -std=c++14` 编译正确解和部分分解，验证公开样例，并输出每份代码对隐藏测试的通过掩码。
 
-macOS 如果没有编译器，先安装 Xcode Command Line Tools：
-
-```bash
-xcode-select --install
-```
-
-Windows 推荐安装 MinGW-w64，并确认终端中可以直接执行 `g++ --version`。
+macOS 使用 Xcode Command Line Tools；Windows 推荐使用 MSYS2 UCRT64 MinGW-w64。详细命令、`PATH` 配置和故障排查见 [Docs/COMPILER_SETUP.md](Docs/COMPILER_SETUP.md)。
 
 ## 设计原则
 
