@@ -49,8 +49,12 @@ namespace NOIChaos
                 return;
             }
 
+            if (highlighted)
+            {
+                marker.gameObject.SetActive(IsAvailable);
+            }
             markerRenderer.sharedMaterial = highlighted ? CreateMaterial(new Color(1f, 0.72f, 0.2f)) : markerMaterial;
-            marker.localScale = Vector3.one * (highlighted ? 0.22f : 0.13f);
+            marker.localScale = Vector3.one * (highlighted ? 0.17f : 0.09f);
         }
 
         public void Interact()
@@ -66,6 +70,14 @@ namespace NOIChaos
         private void Update()
         {
             if (marker == null)
+            {
+                return;
+            }
+
+            ThirdPersonPlayer player = GameManager.Instance != null ? GameManager.Instance.Player : null;
+            bool nearPlayer = player != null && (player.transform.position - transform.position).sqrMagnitude < 30f;
+            marker.gameObject.SetActive(IsAvailable && (nearPlayer || IsHighlighted));
+            if (!marker.gameObject.activeSelf)
             {
                 return;
             }
@@ -86,7 +98,7 @@ namespace NOIChaos
             markerObject.transform.SetParent(transform, false);
             markerObject.transform.localPosition = markerBasePosition;
             markerObject.transform.localRotation = Quaternion.Euler(45f, 0f, 45f);
-            markerObject.transform.localScale = Vector3.one * 0.13f;
+            markerObject.transform.localScale = Vector3.one * 0.09f;
             Collider markerCollider = markerObject.GetComponent<Collider>();
             if (markerCollider != null)
             {

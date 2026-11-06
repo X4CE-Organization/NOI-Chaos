@@ -23,12 +23,21 @@ namespace NOIChaos
 
         private readonly HashSet<int> clueIds = new HashSet<int>();
         private readonly List<string> clueNames = new List<string>();
+        private readonly HashSet<int> copiedAnswerIds = new HashSet<int>();
+        private readonly List<string> copiedAnswers = new List<string>();
+        private readonly List<string> inventory = new List<string>();
+        private float copiedQualityTotal;
 
         public GamePhase Phase { get; private set; } = GamePhase.Title;
         public float Suspicion { get; private set; }
         public string Objective { get; private set; } = "确认第一题的提交状态";
         public int ClueCount => clueIds.Count;
+        public int CopiedAnswerCount => copiedAnswerIds.Count;
+        public float AverageCopyQuality => copiedAnswerIds.Count == 0 ? 0f : copiedQualityTotal / copiedAnswerIds.Count;
+        public int PaperBallsThrown { get; private set; }
+        public int WrongSubmissions { get; private set; }
         public int MaxClues => 3;
+        public int MaxCopiedAnswers => 4;
         public bool Victory { get; private set; }
         public bool EndingVisible { get; private set; }
         public string EndingTitle { get; private set; } = string.Empty;
@@ -41,11 +50,17 @@ namespace NOIChaos
         public float RemainingSeconds => Mathf.Max(0f, RunDurationSeconds - (Time.time - RunStartedAt));
 
         public IReadOnlyList<string> ClueNames => clueNames;
+        public IReadOnlyList<string> CopiedAnswers => copiedAnswers;
+        public IReadOnlyList<string> Inventory => inventory;
 
         public void ResetRun()
         {
             clueIds.Clear();
             clueNames.Clear();
+            copiedAnswerIds.Clear();
+            copiedAnswers.Clear();
+            inventory.Clear();
+            copiedQualityTotal = 0f;
             Suspicion = 0f;
             Phase = GamePhase.Playing;
             Victory = false;
@@ -56,8 +71,10 @@ namespace NOIChaos
             SideRoomFound = false;
             MedalTouched = false;
             CoffeeBoostUntil = 0f;
+            PaperBallsThrown = 0;
+            WrongSubmissions = 0;
             RunStartedAt = Time.time;
-            Objective = "回到自己的机位，确认第一题已提交";
+            Objective = "随便走走。先确认自己的机位，或者直接开始搞事";
             RaiseChanged();
         }
 
@@ -80,17 +97,56 @@ namespace NOIChaos
             }
 
             clueNames.Add(displayName);
-            if (clueIds.Count == 1)
-            {
-                Objective = "收集 3 条灵感，再前往讲台旁的评测终端";
-            }
-            else if (clueIds.Count >= MaxClues)
-            {
-                Objective = "三条灵感已齐：避开监考，提交第二题思路";
-            }
-
+            UpdateOpenObjective();
             RaiseChanged();
             return true;
+        }
+
+        public bool AddCopiedAnswer(int id, string source, string answer, float quality)
+        {
+            if (!copiedAnswerIds.Add(id))
+            {
+                return false;
+            }
+
+            copiedAnswers.Add($"{source}：{answer}  [{Mathf.RoundToInt(quality * 100f)}%]");
+            copiedQualityTotal += Mathf.Clamp01(quality);
+            UpdateOpenObjective();
+            RaiseChanged();
+            return true;
+        }
+
+        public bool HasCopiedAnswer(int id)
+        {
+            return copiedAnswerIds.Contains(id);
+        }
+
+        public void AddItem(string item)
+        {
+            if (inventory.Contains(item))
+            {
+                return;
+            }
+
+            inventory.Add(item);
+            RaiseChanged();
+        }
+
+        public bool HasItem(string item)
+        {
+            return inventory.Contains(item);
+        }
+
+        public void RegisterPaperBall()
+        {
+            PaperBallsThrown++;
+            RaiseChanged();
+        }
+
+        public void RegisterWrongSubmission()
+        {
+            WrongSubmissions++;
+            RaiseChanged();
         }
 
         public void MarkWorkstationChecked()
@@ -101,7 +157,7 @@ namespace NOIChaos
             }
 
             WorkstationChecked = true;
-            Objective = "观察考场，寻找关于第二题的 3 条灵感";
+            UpdateOpenObjective();
             RaiseChanged();
         }
 
@@ -183,6 +239,26 @@ namespace NOIChaos
         public void RaiseChanged()
         {
             Changed?.Invoke();
+        }
+
+        private void UpdateOpenObjective()
+        {
+            if (clueIds.Count >= MaxClues)
+            {
+                Objective = "三条灵感已齐。可以交卷，也可以继续把考场搅乱";
+            }
+            else if (copiedAnswerIds.Count >= 3)
+            {
+                Objective = "已经抄到足够多的答案。继续冒险，或者现在就交卷";
+            }
+            else if (clueIds.Count + copiedAnswerIds.Count > 0)
+            {
+                Objective = $"自由行动：灵感 {clueIds.Count}/3 · 抄录 {copiedAnswerIds.Count}/{MaxCopiedAnswers}";
+            }
+            else
+            {
+                Objective = "这不是规定路线：找灵感、抄答案、扔纸团、直接交卷，随你";
+            }
         }
     }
 }

@@ -22,7 +22,9 @@ namespace NOIChaos
         private bool controlEnabled;
         private bool crouching;
         private InteractionPoint currentInteraction;
+        private AnswerSource currentAnswerSource;
         private InteractionPoint highlightedInteraction;
+        private float paperBallCooldown;
         private readonly Collider[] interactionHits = new Collider[24];
 
         public bool IsCrouching => crouching;
@@ -175,6 +177,13 @@ namespace NOIChaos
                 GameManager.Instance.ReportNoise(transform.position, 3.5f);
             }
 
+            paperBallCooldown -= Time.deltaTime;
+            if (Input.GetKeyDown(KeyCode.G) && paperBallCooldown <= 0f)
+            {
+                paperBallCooldown = 0.35f;
+                PaperBallProjectile.Throw(GameManager.Instance, GameManager.Instance.PlayerCamera.GetComponent<Camera>(), this);
+            }
+
             verticalVelocity += Gravity * Time.deltaTime;
             controller.Move(Vector3.up * (verticalVelocity * Time.deltaTime));
 
@@ -219,28 +228,40 @@ namespace NOIChaos
 
         private void HandleInteraction()
         {
-            InteractionPoint found = FindNearestInteraction();
+            FindNearbyTargets(out InteractionPoint found, out AnswerSource answerSource);
             SetInteraction(found);
+            currentAnswerSource = answerSource;
 
+            string prompt = string.Empty;
             if (currentInteraction != null)
             {
-                GameManager.Instance.UI.SetPrompt($"[E]  {currentInteraction.Prompt}");
+                prompt = $"[E]  {currentInteraction.Prompt}";
                 if (Input.GetKeyDown(KeyCode.E))
                 {
                     currentInteraction.Interact();
                 }
             }
-            else
+
+            if (currentAnswerSource != null && currentAnswerSource.CanCopy)
             {
-                GameManager.Instance.UI.SetPrompt(string.Empty);
+                prompt += (string.IsNullOrEmpty(prompt) ? string.Empty : "     ") + "[F]  偷看并抄下答案";
+                if (Input.GetKeyDown(KeyCode.F))
+                {
+                    currentAnswerSource.Copy(this);
+                    currentAnswerSource = null;
+                }
             }
+
+            GameManager.Instance.UI.SetPrompt(prompt);
         }
 
-        private InteractionPoint FindNearestInteraction()
+        private void FindNearbyTargets(out InteractionPoint nearestInteraction, out AnswerSource nearestAnswer)
         {
             int count = Physics.OverlapSphereNonAlloc(transform.position + Vector3.up, 2.35f, interactionHits, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-            InteractionPoint nearest = null;
+            nearestInteraction = null;
+            nearestAnswer = null;
             float nearestDistance = float.MaxValue;
+            float nearestAnswerDistance = float.MaxValue;
 
             for (int i = 0; i < count; i++)
             {
@@ -250,21 +271,21 @@ namespace NOIChaos
                     continue;
                 }
 
+                float distance = (hit.transform.position - transform.position).sqrMagnitude;
                 InteractionPoint point = hit.GetComponentInParent<InteractionPoint>();
-                if (point == null || !point.IsAvailable)
-                {
-                    continue;
-                }
-
-                float distance = (point.transform.position - transform.position).sqrMagnitude;
-                if (distance < nearestDistance)
+                if (point != null && point.IsAvailable && distance < nearestDistance)
                 {
                     nearestDistance = distance;
-                    nearest = point;
+                    nearestInteraction = point;
+                }
+
+                AnswerSource answerSource = hit.GetComponentInParent<AnswerSource>();
+                if (answerSource != null && answerSource.CanCopy && distance < nearestAnswerDistance)
+                {
+                    nearestAnswerDistance = distance;
+                    nearestAnswer = answerSource;
                 }
             }
-
-            return nearest;
         }
 
         private void SetInteraction(InteractionPoint point)

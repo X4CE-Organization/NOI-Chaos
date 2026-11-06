@@ -171,7 +171,7 @@ namespace NOIChaos
 
             GameSession session = game.Session;
             objectiveText.text = session.Objective;
-            clueCounterText.text = $"灵感  {session.ClueCount:00} / {session.MaxClues:00}";
+            clueCounterText.text = $"灵感 {session.ClueCount:00}/{session.MaxClues:00}  ·  抄录 {session.CopiedAnswerCount:00}/{session.MaxCopiedAnswers:00}";
 
             float suspicion = session.Suspicion / 100f;
             suspicionFill.rectTransform.anchorMax = new Vector2(suspicion, 1f);
@@ -184,18 +184,21 @@ namespace NOIChaos
 
             if (clueListText != null)
             {
-                if (session.ClueNames.Count == 0)
+                if (session.ClueNames.Count == 0 && session.CopiedAnswerCount == 0)
                 {
-                    clueListText.text = "尚未收集\n\n观察、询问、翻找。";
+                    clueListText.text = "尚未收集\n\n观察、询问、翻找。\n靠近别人的屏幕按 F 抄答案。";
                 }
                 else
                 {
                     StringBuilder clueBuilder = new StringBuilder();
+                    clueBuilder.AppendLine($"灵感 {session.ClueCount}/{session.MaxClues}");
                     for (int i = 0; i < session.ClueNames.Count; i++)
                     {
                         clueBuilder.Append("◆ ");
                         clueBuilder.AppendLine(session.ClueNames[i]);
                     }
+                    clueBuilder.AppendLine();
+                    clueBuilder.AppendLine($"抄录答案 {session.CopiedAnswerCount}/{session.MaxCopiedAnswers}");
                     clueListText.text = clueBuilder.ToString();
                 }
             }
@@ -225,7 +228,7 @@ namespace NOIChaos
             }
 
             StringBuilder builder = new StringBuilder();
-            builder.AppendLine("X4CE  //  选手笔记本");
+            builder.AppendLine("EXAM NOTES  //  SEAT 047");
             builder.AppendLine();
             builder.AppendLine("<color=#61E5DB>当前目标</color>");
             builder.AppendLine(game.Session.Objective);
@@ -244,12 +247,27 @@ namespace NOIChaos
             }
 
             builder.AppendLine();
+            builder.AppendLine("<color=#61E5DB>抄来的答案</color>");
+            if (game.Session.CopiedAnswers.Count == 0)
+            {
+                builder.AppendLine("· 靠近其他人的屏幕，按 F 偷看。蹲下会更安全。");
+            }
+            else
+            {
+                for (int i = 0; i < game.Session.CopiedAnswers.Count; i++)
+                {
+                    builder.AppendLine($"· {game.Session.CopiedAnswers[i]}");
+                }
+            }
+
+            builder.AppendLine();
             builder.AppendLine("<color=#61E5DB>行动记录</color>");
             builder.AppendLine(game.Session.WorkstationChecked ? "· T1：Accepted" : "· T1：待确认");
             builder.AppendLine(game.Session.SideRoomFound ? "· 发现被遗忘的选手手册" : "· 海报背后似乎有空隙");
+            builder.AppendLine($"· 扔出纸团：{game.Session.PaperBallsThrown}");
             builder.AppendLine();
             builder.AppendLine("<color=#F2AA3C>操作</color>  WASD 移动  ·  鼠标观察  ·  Shift 奔跑");
-            builder.AppendLine("C 蹲伏  ·  Space 跳跃  ·  E 交互  ·  Tab 关闭");
+            builder.AppendLine("C 蹲伏  ·  F 抄答案  ·  G 扔纸团  ·  E 交互  ·  Tab 关闭");
             notebookText.text = builder.ToString();
         }
 
@@ -311,7 +329,7 @@ namespace NOIChaos
                 new Vector2(0f, -38f),
                 new Vector2(-240f, 1f));
 
-            Text brand = CreateText("Brand", titleRoot.transform, "X4CE  /  OPEN SOURCE  /  BUILD 0.2", 18, new Color(0.39f, 0.86f, 0.82f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Text brand = CreateText("Brand", titleRoot.transform, "NOI 2026  /  OPEN EXAM  /  BUILD 0.3", 18, new Color(0.39f, 0.86f, 0.82f), TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(brand.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(132f, -78f), new Vector2(760f, 32f));
             Text edition = CreateText("Edition", titleRoot.transform, "NOI 2026  ·  CAMPUS INCIDENT FILE", 17, new Color(0.6f, 0.65f, 0.67f), TextAnchor.MiddleRight);
             Place(edition.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-118f, -78f), new Vector2(620f, 32f));
@@ -349,7 +367,7 @@ namespace NOIChaos
             Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -205f), new Vector2(360f, 72f));
             startButton.onClick.AddListener(game.StartGame);
 
-            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   鼠标观察   ·   E 交互", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
+            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   E 交互   ·   F 抄答案   ·   G 扔纸团", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
             Place(startHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -270f), new Vector2(680f, 32f));
 
             Text disclaimer = CreateText(
@@ -463,7 +481,7 @@ namespace NOIChaos
 
             Text candidateLabel = CreateText("Candidate label", filePanel.transform, "CANDIDATE", 15, new Color(0.42f, 0.5f, 0.53f), TextAnchor.MiddleLeft);
             Place(candidateLabel.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -92f), new Vector2(180f, 24f));
-            Text candidate = CreateText("Candidate", filePanel.transform, "X4CE", 31, Color.white, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Text candidate = CreateText("Candidate", filePanel.transform, "考生 047 / 你", 31, Color.white, TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(candidate.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -122f), new Vector2(240f, 42f));
             Text rank = CreateText("Rank", filePanel.transform, "047", 74, new Color(1f, 0.68f, 0.18f), TextAnchor.MiddleRight, FontStyle.Bold);
             Place(rank.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-32f, -112f), new Vector2(170f, 88f));
@@ -479,7 +497,7 @@ namespace NOIChaos
             Text summary = CreateText(
                 "Summary",
                 filePanel.transform,
-                "保持低调，收集三条灵感。\n在交卷铃响之前提交第二题。",
+                "找灵感、抄答案、制造混乱。\n在铃响之前决定怎么交卷。",
                 21,
                 new Color(0.78f, 0.84f, 0.85f),
                 TextAnchor.UpperLeft);
@@ -520,8 +538,8 @@ namespace NOIChaos
             GameObject statusPanel = CreatePanel("Status panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.88f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -42f), new Vector2(430f, 152f));
             suspicionText = CreateText("Suspicion label", statusPanel.transform, "怀疑度  00%", 20, new Color(0.77f, 0.84f, 0.87f), TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(suspicionText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -22f), new Vector2(260f, 28f));
-            clueCounterText = CreateText("Clue count", statusPanel.transform, "灵感  00 / 03", 18, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleRight, FontStyle.Bold);
-            Place(clueCounterText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-22f, -22f), new Vector2(260f, 28f));
+            clueCounterText = CreateText("Clue count", statusPanel.transform, "灵感 00/03 · 抄录 00/04", 16, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(clueCounterText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -22f), new Vector2(320f, 28f));
 
             Image barBackground = CreateImage("Suspicion track", statusPanel.transform, new Color(0.08f, 0.12f, 0.15f, 1f));
             Place(barBackground.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -70f), new Vector2(386f, 15f));
@@ -542,7 +560,7 @@ namespace NOIChaos
             GameObject cluePanel = CreatePanel("Clue panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.76f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(46f, -112f), new Vector2(340f, 220f));
             Text clueHeading = CreateText("Clue heading", cluePanel.transform, "INSPIRATION  //  灵感", 17, new Color(0.36f, 0.79f, 0.78f), TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(clueHeading.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -20f), new Vector2(292f, 28f));
-            clueListText = CreateText("Clue list", cluePanel.transform, "尚未收集\n\n观察、询问、翻找。", 19, new Color(0.7f, 0.78f, 0.8f), TextAnchor.UpperLeft);
+            clueListText = CreateText("Clue list", cluePanel.transform, "尚未收集\n\n观察、询问、翻找。\n靠近别人的屏幕按 F 抄答案。", 18, new Color(0.7f, 0.78f, 0.8f), TextAnchor.UpperLeft);
             Place(clueListText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -58f), new Vector2(292f, 140f));
 
             promptText = CreateText("Interaction prompt", hudRoot.transform, string.Empty, 24, new Color(1f, 0.76f, 0.25f), TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -552,10 +570,10 @@ namespace NOIChaos
             promptOutline.effectDistance = new Vector2(2f, -2f);
             promptText.CrossFadeAlpha(0f, 0f, true);
 
-            Text hint = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   E 交互   ·   Tab 笔记   ·   Esc 暂停", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
+            Text hint = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   F 抄答案   ·   G 纸团   ·   E 交互   ·   Tab 笔记", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
             Place(hint.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 40f), new Vector2(1000f, 32f));
 
-            Text watermark = CreateText("Watermark", hudRoot.transform, "X4CE  /  2026", 17, new Color(0.95f, 0.61f, 0.16f, 0.7f), TextAnchor.MiddleRight);
+            Text watermark = CreateText("Watermark", hudRoot.transform, "EXAM HALL 03  /  2026", 17, new Color(0.95f, 0.61f, 0.16f, 0.7f), TextAnchor.MiddleRight);
             Place(watermark.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-48f, 40f), new Vector2(300f, 32f));
 
             BuildVignette(hudRoot.transform);
@@ -566,11 +584,12 @@ namespace NOIChaos
             notebookRoot = CreateFullPanel("Notebook overlay", canvas.transform, new Color(0f, 0f, 0f, 0.56f));
             GameObject panel = CreatePanel("Notebook", notebookRoot.transform, new Color(0.025f, 0.055f, 0.075f, 0.98f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1020f, 700f));
             CreatePanel("Notebook edge", panel.transform, new Color(0.97f, 0.63f, 0.16f, 1f), Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(7f, 0f));
-            Text heading = CreateText("Heading", panel.transform, "X4CE  //  EXAM NOTES", 30, new Color(0.43f, 0.91f, 0.86f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Text heading = CreateText("Heading", panel.transform, "EXAM NOTES  //  SEAT 047", 30, new Color(0.43f, 0.91f, 0.86f), TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(heading.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(40f, -36f), new Vector2(760f, 44f));
             Text close = CreateText("Close hint", panel.transform, "TAB  关闭", 17, new Color(0.48f, 0.57f, 0.6f), TextAnchor.MiddleRight);
             Place(close.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-40f, -36f), new Vector2(180f, 32f));
-            notebookText = CreateText("Notebook body", panel.transform, string.Empty, 23, new Color(0.85f, 0.89f, 0.9f), TextAnchor.UpperLeft);
+            notebookText = CreateText("Notebook body", panel.transform, string.Empty, 19, new Color(0.85f, 0.89f, 0.9f), TextAnchor.UpperLeft);
+            notebookText.lineSpacing = 0.98f;
             Place(notebookText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(42f, -108f), new Vector2(930f, 545f));
             notebookRoot.SetActive(false);
         }

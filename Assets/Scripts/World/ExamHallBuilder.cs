@@ -39,7 +39,6 @@ namespace NOIChaos
             BuildExamStations();
             BuildStage(world);
             BuildSideInteractions();
-            BuildCandidates();
             BuildDust();
             BuildInvigilators(world);
 
@@ -81,12 +80,12 @@ namespace NOIChaos
 
             for (int row = 0; row < 3; row++)
             {
-                for (int col = 0; col < 4; col++)
+                for (int col = 0; col < 3; col++)
                 {
-                    float x = -7.8f + col * 5.15f;
+                    float x = -7.2f + col * 7.2f;
                     float z = -5.2f + row * 3.45f;
-                    CreateCube("Floor island", new Vector3(x, 0.006f, z), new Vector3(4.35f, 0.012f, 2.65f), new Color(0.075f, 0.1f, 0.14f), false, 0.1f, 0.1f);
-                    CreateCube("Island edge", new Vector3(x, 0.014f, z + 1.33f), new Vector3(4.35f, 0.018f, 0.035f), new Color(0.06f, 0.46f, 0.5f), false, 0.4f, 0.4f, 0.2f);
+                    CreateCube("Floor island", new Vector3(x, 0.006f, z), new Vector3(4.15f, 0.012f, 2.65f), new Color(0.075f, 0.1f, 0.14f), false, 0.1f, 0.1f);
+                    CreateCube("Island edge", new Vector3(x, 0.014f, z + 1.33f), new Vector3(4.15f, 0.018f, 0.035f), new Color(0.06f, 0.46f, 0.5f), false, 0.4f, 0.4f, 0.2f);
                 }
             }
 
@@ -116,6 +115,15 @@ namespace NOIChaos
             CreateCube("Door window", new Vector3(0f, 2.1f, -0.19f), new Vector3(1.1f, 0.72f, 0.02f), new Color(0.18f, 0.48f, 0.57f), false, 0.1f, 0.8f, 0.22f, doorRoot);
             CreateCube("Door handle", new Vector3(0.72f, 1.48f, -0.2f), new Vector3(0.12f, 0.08f, 0.17f), Gold, false, 0.8f, 0.6f, 0.2f, doorRoot);
             WorldLabel("出口  /  EXIT", doorRoot, new Vector3(0f, 3.15f, -0.16f), 0.09f, new Color(0.8f, 0.88f, 0.9f), 58);
+            BoxCollider doorCollider = doorRoot.gameObject.AddComponent<BoxCollider>();
+            doorCollider.center = new Vector3(0f, 1.6f, -0.1f);
+            doorCollider.size = new Vector3(2.4f, 3.2f, 0.35f);
+            InteractionPoint doorPoint = doorRoot.gameObject.AddComponent<InteractionPoint>();
+            doorPoint.Configure(
+                "推门离开考场，自由地弃赛",
+                () => game.LeaveExam(),
+                true,
+                new Vector3(0f, 1.7f, -0.24f));
         }
 
         private static void BuildLighting()
@@ -163,21 +171,22 @@ namespace NOIChaos
         {
             string[] candidateNames =
             {
-                "空位", "选手 47", "选手 03", "选手 88",
-                "选手 21", "X4CE", "选手 19", "选手 12",
-                "选手 64", "选手 07", "选手 31", "选手 55"
+                "选手 03", "你的机位", "选手 21",
+                "选手 19", "空位", "选手 64",
+                "选手 88", "选手 31", "选手 12"
             };
 
             int index = 0;
             for (int row = 0; row < 3; row++)
             {
-                for (int col = 0; col < 4; col++)
+                for (int col = 0; col < 3; col++)
                 {
-                    float x = -7.8f + col * 5.15f;
+                    float x = -7.2f + col * 7.2f;
                     float z = -5.2f + row * 3.45f;
                     bool isPlayerDesk = row == 0 && col == 1;
                     string candidateName = candidateNames[index];
-                    BuildDesk(index, x, z, isPlayerDesk, candidateName, row * 4 + col == 4 || row * 4 + col == 10);
+                    bool occupied = index != 1 && index != 4;
+                    BuildDesk(index, x, z, isPlayerDesk, candidateName, occupied);
                     index++;
                 }
             }
@@ -185,7 +194,7 @@ namespace NOIChaos
 
         private static void BuildDesk(int index, float x, float z, bool isPlayerDesk, string candidateName, bool occupied)
         {
-            Transform desk = new GameObject((isPlayerDesk ? "X4CE station" : "Station " + candidateName)).transform;
+            Transform desk = new GameObject((isPlayerDesk ? "Your station" : "Station " + candidateName)).transform;
             desk.SetParent(root);
             desk.position = new Vector3(x, 0f, z);
 
@@ -216,11 +225,16 @@ namespace NOIChaos
 
             if (occupied)
             {
-                BuildSeatedCandidate(desk, new Vector3(0f, 0f, -1.01f), index == 4 ? new Color(0.66f, 0.18f, 0.14f) : new Color(0.15f, 0.32f, 0.6f), index == 4);
+                Color shirt = index == 0 ? new Color(0.66f, 0.18f, 0.14f) : new Color(0.15f, 0.32f, 0.6f);
+                BuildSeatedCandidate(desk, new Vector3(0f, 0f, -1.01f), shirt, index == 0);
             }
 
             InteractionPoint interaction = desk.gameObject.AddComponent<InteractionPoint>();
-            if (isPlayerDesk)
+            if (index == 4)
+            {
+                interaction.SetAvailable(false);
+            }
+            else if (isPlayerDesk)
             {
                 interaction.Configure("查看自己的 NOI 机位", () =>
                 {
@@ -242,17 +256,38 @@ namespace NOIChaos
                 int capturedIndex = index;
                 interaction.Configure("查看邻座终端", () =>
                 {
-                    if (capturedIndex == 10)
-                    {
-                        game.Session.AddClue(2, "三次启发式 → 三个共享起点");
-                        game.AudioDirector.PlayConfirm();
-                        game.Toast("草稿纸上写着：一次不会，就观察三次。", new Color(0.45f, 1f, 0.72f));
-                    }
-                    else
-                    {
-                        game.Toast(capturedIndex % 3 == 0 ? "编译器正在思考人生。请不要打扰。" : "别人的代码，看不懂也是一种尊重。");
-                    }
+                    game.Toast(capturedIndex % 3 == 0 ? "编译器正在思考人生。靠近屏幕按 F 可以偷看。" : "别人的屏幕没有锁。按 F 就能抄下来。");
                 }, true);
+            }
+
+            string copiedAnswer = null;
+            string answerOwner = candidateName;
+            float answerQuality = 0f;
+            switch (index)
+            {
+                case 2:
+                    copiedAnswer = "反向边最短路 + 分治合并";
+                    answerQuality = 0.77f;
+                    break;
+                case 3:
+                    copiedAnswer = "离线分块 DP";
+                    answerQuality = 0.69f;
+                    break;
+                case 5:
+                    copiedAnswer = "随机爬山 + 骗分特判";
+                    answerQuality = 0.58f;
+                    break;
+                case 7:
+                    copiedAnswer = "多源反向 + 倍增合并";
+                    answerQuality = 0.82f;
+                    break;
+            }
+
+            if (copiedAnswer != null)
+            {
+                AnswerSource source = desk.gameObject.AddComponent<AnswerSource>();
+                source.Configure(100 + index, answerOwner, copiedAnswer, answerQuality);
+                CreateCube("Copyable answer holo", new Vector3(0.7f, 1.17f, -0.31f), new Vector3(0.1f, 0.1f, 0.012f), new Color(1f, 0.65f, 0.16f), false, 0.1f, 0.5f, 1.4f, desk);
             }
         }
 
@@ -304,9 +339,8 @@ namespace NOIChaos
             board.SetParent(stage);
             CreateCube("Board frame", new Vector3(-4.5f, 2.8f, 9.95f), new Vector3(7.3f, 2.75f, 0.16f), new Color(0.075f, 0.055f, 0.04f), false, 0.3f, 0.2f, 0f, board);
             CreateCube("Board surface", new Vector3(-4.5f, 2.8f, 9.85f), new Vector3(6.8f, 2.35f, 0.045f), new Color(0.035f, 0.11f, 0.085f), false, 0.05f, 0.15f, 0f, board);
-            WorldLabel("T2 : 离线路径重建", board, new Vector3(-4.5f, 3.63f, 9.8f), 0.15f, Cream, 68);
-            WorldLabel("反向边  /  OFFLINE  /  QUERY", board, new Vector3(-4.5f, 2.98f, 9.79f), 0.105f, new Color(0.51f, 0.91f, 0.71f), 54);
-            WorldLabel("答案不会自己出现，但线索会。", board, new Vector3(-4.5f, 2.33f, 9.79f), 0.085f, new Color(0.75f, 0.84f, 0.61f), 42);
+            WorldLabel("T2  /  离线路径", board, new Vector3(-4.5f, 3.52f, 9.8f), 0.14f, Cream, 64);
+            WorldLabel("反向边  ·  离线询问  ·  合并", board, new Vector3(-4.5f, 2.72f, 9.79f), 0.1f, new Color(0.51f, 0.91f, 0.71f), 50);
 
             BoxCollider boardCollider = board.gameObject.AddComponent<BoxCollider>();
             boardCollider.center = new Vector3(-4.5f, 2.8f, 9.8f);
@@ -337,10 +371,9 @@ namespace NOIChaos
         {
             CreateCube("Leaderboard housing", new Vector3(5.25f, 2.85f, 9.97f), new Vector3(7.1f, 3.15f, 0.15f), new Color(0.025f, 0.04f, 0.06f), false, 0.55f, 0.25f, 0f, parent);
             CreateCube("Leaderboard screen", new Vector3(5.25f, 2.85f, 9.86f), new Vector3(6.65f, 2.7f, 0.04f), new Color(0.015f, 0.1f, 0.15f), false, 0.1f, 0.7f, 0.25f, parent);
-            WorldLabel("NOI  2026   RANK", new Vector3(5.25f, 3.77f, 9.8f), 0.12f, new Color(0.55f, 0.9f, 1f), 52, parent);
-            WorldLabel("047  X4CE", new Vector3(5.25f, 3.08f, 9.8f), 0.18f, Gold, 72, parent);
-            WorldLabel("GOLD LINE   ▲   003", new Vector3(5.25f, 2.31f, 9.8f), 0.11f, new Color(1f, 0.36f, 0.24f), 48, parent);
-            WorldLabel("第一题 Accepted   ·   第二题  ???", new Vector3(5.25f, 1.88f, 9.8f), 0.075f, new Color(0.48f, 0.75f, 0.82f), 38, parent);
+            WorldLabel("NOI  2026  /  RANK", new Vector3(5.25f, 3.77f, 9.8f), 0.11f, new Color(0.55f, 0.9f, 1f), 48, parent);
+            WorldLabel("047  /  YOU", new Vector3(5.25f, 3.08f, 9.8f), 0.18f, Gold, 72, parent);
+            WorldLabel("GOLD LINE  /  003", new Vector3(5.25f, 2.3f, 9.8f), 0.11f, new Color(1f, 0.36f, 0.24f), 48, parent);
 
             BoxCollider collider = parent.gameObject.AddComponent<BoxCollider>();
             collider.center = new Vector3(5.25f, 2.6f, 9.7f);
@@ -543,31 +576,6 @@ namespace NOIChaos
 
             PosterWatcher watcher = root.gameObject.AddComponent<PosterWatcher>();
             watcher.Configure(game.Session, manual.gameObject);
-        }
-
-        private static void BuildCandidates()
-        {
-            BuildAmbientCandidate(new Vector3(-7.8f, 0f, -7.0f), new Color(0.42f, 0.16f, 0.22f), "选手 47");
-            BuildAmbientCandidate(new Vector3(7.8f, 0f, 4.2f), new Color(0.2f, 0.28f, 0.54f), "选手 64");
-            BuildAmbientCandidate(new Vector3(2.95f, 0f, -7.6f), new Color(0.18f, 0.4f, 0.3f), "选手 03");
-        }
-
-        private static void BuildAmbientCandidate(Vector3 position, Color shirt, string candidateName)
-        {
-            Transform candidate = new GameObject("Candidate // " + candidateName).transform;
-            candidate.SetParent(root);
-            candidate.position = position;
-            BuildSeatedCandidate(candidate, Vector3.zero, shirt, false);
-            BoxCollider collider = candidate.gameObject.AddComponent<BoxCollider>();
-            collider.center = new Vector3(0f, 0.98f, 0f);
-            collider.size = new Vector3(0.9f, 1.9f, 0.9f);
-            collider.isTrigger = true;
-            InteractionPoint point = candidate.gameObject.AddComponent<InteractionPoint>();
-            point.Configure("和" + candidateName + "交换眼神", () =>
-            {
-                game.Session.AddSuspicion(2f);
-                game.Toast(candidateName + "：别看我，我也不会第二题。");
-            });
         }
 
         private static void BuildInvigilators(ExamHallWorld world)
