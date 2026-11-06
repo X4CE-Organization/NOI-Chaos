@@ -41,7 +41,7 @@
 ```bash
 UNITY="/Applications/Unity/Hub/Editor/2022.3.62f3c1/Unity.app/Contents/MacOS/Unity"
 "$UNITY" -batchmode -nographics -quit \
-  -projectPath "/path/to/NOI Test" \
+  -projectPath "/path/to/NOI Chaos" \
   -executeMethod NOIChaos.Editor.ProjectBootstrapper.SetupProject \
   -logFile "Logs/setup.log"
 ```
