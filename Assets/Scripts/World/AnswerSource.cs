@@ -37,6 +37,7 @@ namespace NOIChaos
             }
 
             game.Session.AddCopiedAnswer(sourceId, sourceName, answer, quality);
+            player.ExposeFromSeat(2.8f);
             float risk = player.IsCrouching ? 5f : (player.IsSeated ? 7f : 11f);
             game.AddSuspicion(risk);
             game.ReportNoise(transform.position, player.IsCrouching ? 1.8f : 3.5f);

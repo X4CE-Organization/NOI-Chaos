@@ -23,14 +23,18 @@ namespace NOIChaos
         private bool crouching;
         private bool seated;
         private Transform seatedChair;
+        private float seatedExposureUntil;
         private InteractionPoint currentInteraction;
         private AnswerSource currentAnswerSource;
         private InteractionPoint highlightedInteraction;
         private float paperBallCooldown;
+        private float punchCooldown;
+        private float punchAnimation;
         private readonly Collider[] interactionHits = new Collider[24];
 
         public bool IsCrouching => crouching;
         public bool IsSeated => seated;
+        public bool IsConcealedAtSeat => seated && Time.time >= seatedExposureUntil;
         public bool IsSprinting { get; private set; }
         public float EyeHeight => seated ? 1.32f : (crouching ? 1.05f : 1.58f);
         public Transform ViewTarget { get; private set; }
@@ -178,6 +182,14 @@ namespace NOIChaos
             GameManager.Instance.Toast("站起来了。移动、跳跃、奔跑和蹲伏已恢复。");
         }
 
+        public void ExposeFromSeat(float duration)
+        {
+            if (seated)
+            {
+                seatedExposureUntil = Mathf.Max(seatedExposureUntil, Time.time + duration);
+            }
+        }
+
         private void HandleMovement()
         {
             ThirdPersonCamera playerCamera = GameManager.Instance.PlayerCamera;
@@ -251,6 +263,13 @@ namespace NOIChaos
             {
                 paperBallCooldown = 0.35f;
                 PaperBallProjectile.Throw(GameManager.Instance, GameManager.Instance.PlayerCamera.GetComponent<Camera>(), this);
+            }
+
+            punchCooldown -= Time.deltaTime;
+            if (Input.GetKeyDown(KeyCode.Q) && punchCooldown <= 0f)
+            {
+                punchCooldown = 0.48f;
+                TryPunch();
             }
 
             verticalVelocity += Gravity * Time.deltaTime;
@@ -380,6 +399,57 @@ namespace NOIChaos
             rightArm.localRotation = Quaternion.Euler(-42f - Mathf.Sin(animationTime * 0.7f) * 2f, 0f, 8f);
         }
 
+        private void TryPunch()
+        {
+            punchAnimation = 0.22f;
+            Camera viewCamera = GameManager.Instance.PlayerCamera.GetComponent<Camera>();
+            Vector3 direction = viewCamera.transform.forward;
+            direction.y = 0f;
+            direction.Normalize();
+            Vector3 origin = transform.position + Vector3.up * 1.05f + direction * 0.55f;
+            int count = Physics.OverlapSphereNonAlloc(origin, 1.05f, interactionHits, ~0, QueryTriggerInteraction.Collide);
+            PunchableTarget nearest = null;
+            float nearestDistance = float.MaxValue;
+            for (int i = 0; i < count; i++)
+            {
+                Collider hit = interactionHits[i];
+                if (hit == null || hit.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                PunchableTarget target = hit.GetComponentInParent<PunchableTarget>();
+                if (target == null)
+                {
+                    continue;
+                }
+
+                Vector3 toTarget = target.transform.position - transform.position;
+                toTarget.y = 0f;
+                if (Vector3.Dot(direction, toTarget.normalized) < 0.15f)
+                {
+                    continue;
+                }
+
+                float distance = toTarget.sqrMagnitude;
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = target;
+                }
+            }
+
+            if (nearest != null)
+            {
+                nearest.ReceivePunch(this);
+            }
+            else
+            {
+                GameManager.Instance.ReportNoise(transform.position, 2.5f);
+                GameManager.Instance.Toast("你对着空气打了一拳。至少姿势很标准。");
+            }
+        }
+
         private void FindNearbyTargets(out InteractionPoint nearestInteraction, out AnswerSource nearestAnswer)
         {
             int count = Physics.OverlapSphereNonAlloc(transform.position + Vector3.up, 2.35f, interactionHits, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
@@ -445,7 +515,10 @@ namespace NOIChaos
             animationTime += Time.deltaTime * Mathf.Lerp(3f, 10f, blend);
             float swing = Mathf.Sin(animationTime) * (9f + blend * 30f);
             leftArm.localRotation = Quaternion.Euler(swing, 0f, -5f);
-            rightArm.localRotation = Quaternion.Euler(-swing, 0f, 5f);
+            punchAnimation -= Time.deltaTime;
+            rightArm.localRotation = punchAnimation > 0f
+                ? Quaternion.Euler(-82f, 0f, -4f)
+                : Quaternion.Euler(-swing, 0f, 5f);
             leftLeg.localRotation = Quaternion.Euler(-swing * 0.75f, 0f, 0f);
             rightLeg.localRotation = Quaternion.Euler(swing * 0.75f, 0f, 0f);
             float bob = planarSpeed > 0.1f ? Mathf.Abs(Mathf.Sin(animationTime * 2f)) * 0.035f : 0f;

@@ -17,6 +17,7 @@ namespace NOIChaos
         private AudioClip errorClip;
         private AudioClip successClip;
         private AudioClip caughtClip;
+        private AudioClip punchClip;
 
         private void Awake()
         {
@@ -34,6 +35,7 @@ namespace NOIChaos
             errorClip = CreateChordClip("Error", new[] { 146.8f, 155.6f }, 0.35f, 0.22f);
             successClip = CreateChordClip("Success", new[] { 523.3f, 659.3f, 784f }, 1.2f, 0.2f);
             caughtClip = CreateChordClip("Caught", new[] { 98f, 110f, 130.8f }, 1.1f, 0.24f);
+            punchClip = CreateNoiseClip("Punch impact", 0.18f, 0.6f, 24f);
         }
 
         public void StartAmbient()
@@ -73,6 +75,19 @@ namespace NOIChaos
         {
             effectsSource.pitch = 1f;
             effectsSource.PlayOneShot(caughtClip, 0.9f);
+        }
+
+        public void PlayPunch()
+        {
+            effectsSource.pitch = Random.Range(0.86f, 1.04f);
+            effectsSource.PlayOneShot(punchClip, 0.85f);
+        }
+
+        public void PlayShock()
+        {
+            effectsSource.pitch = 1f;
+            effectsSource.PlayOneShot(errorClip, 1f);
+            effectsSource.PlayOneShot(beepClip, 0.75f);
         }
 
         private static AudioClip CreateToneClip(string name, float frequency, float duration, float amplitude)

@@ -32,6 +32,17 @@ namespace NOIChaos
             }
         }
 
+        public void AlertSecurity(Vector3 position)
+        {
+            for (int i = 0; i < invigilators.Count; i++)
+            {
+                if (invigilators[i].IsSecurityGuard)
+                {
+                    invigilators[i].AlertTo(position, float.MaxValue, true);
+                }
+            }
+        }
+
         public void DistractInvigilators(Vector3 position, float duration)
         {
             for (int i = 0; i < invigilators.Count; i++)

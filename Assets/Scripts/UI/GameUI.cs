@@ -163,6 +163,18 @@ namespace NOIChaos
             StartCoroutine(FlashRoutine());
         }
 
+        public void ElectricFlash()
+        {
+            if (flashRoot == null)
+            {
+                return;
+            }
+
+            StopAllCoroutines();
+            flashRoot.GetComponent<Image>().color = new Color(0.24f, 0.92f, 1f, 1f);
+            StartCoroutine(ElectricFlashRoutine());
+        }
+
         private void RefreshState()
         {
             if (!initialized || game == null || game.Session == null)
@@ -186,7 +198,7 @@ namespace NOIChaos
             {
                 controlHintText.text = session.IsSeated
                     ? "坐姿动作：鼠标观察   ·   F 侧头偷看   ·   G 扔纸团   ·   E / 左键 站起   ·   Tab 笔记"
-                    : "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团   ·   Tab 笔记";
+                    : "WASD 移动 · Shift 奔跑 · C 蹲伏 · 左键/E 交互 · F 抄答案 · G 纸团 · Q 拳击 · Tab 笔记";
             }
 
             if (clueListText != null)
@@ -276,7 +288,7 @@ namespace NOIChaos
             builder.AppendLine("<color=#F2AA3C>操作</color>  WASD 移动  ·  鼠标观察  ·  Shift 奔跑");
             builder.AppendLine(game.Session.IsSeated
                 ? "坐姿：F 侧头偷看  ·  G 扔纸团  ·  E/左键 站起  ·  移动动作禁用"
-                : "C 蹲伏  ·  F 抄答案  ·  G 扔纸团  ·  E/左键 交互  ·  Tab 关闭");
+                : "C 蹲伏  ·  F 抄答案  ·  G 扔纸团  ·  Q 拳击  ·  E/左键 交互  ·  Tab 关闭");
             notebookText.text = builder.ToString();
         }
 
@@ -376,13 +388,13 @@ namespace NOIChaos
             Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -205f), new Vector2(360f, 72f));
             startButton.onClick.AddListener(game.StartGame);
 
-            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
+            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动 · 左键/E 交互 · F 抄答案 · G 纸团 · Q 拳击", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
             Place(startHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -270f), new Vector2(680f, 32f));
 
             Text disclaimer = CreateText(
                 "Disclaimer",
                 titleRoot.transform,
-                "虚构考场 · 荒诞潜行 · 不鼓励现实作弊\n所有场景、角色与音效均在运行时生成",
+                "虚构考场 · 荒诞潜行 · 不鼓励现实作弊\n大声打斗会引来保安，电击不是装饰",
                 17,
                 new Color(0.42f, 0.49f, 0.51f),
                 TextAnchor.UpperLeft);
@@ -579,7 +591,7 @@ namespace NOIChaos
             promptOutline.effectDistance = new Vector2(2f, -2f);
             promptText.CrossFadeAlpha(0f, 0f, true);
 
-            controlHintText = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团   ·   Tab 笔记", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
+            controlHintText = CreateText("Control hint", hudRoot.transform, "WASD 移动 · Shift 奔跑 · C 蹲伏 · 左键/E 交互 · F 抄答案 · G 纸团 · Q 拳击 · Tab 笔记", 16, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
             Place(controlHintText.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 40f), new Vector2(1000f, 32f));
 
             Text watermark = CreateText("Watermark", hudRoot.transform, "EXAM HALL 03  /  2026", 17, new Color(0.95f, 0.61f, 0.16f, 0.7f), TextAnchor.MiddleRight);
@@ -676,7 +688,7 @@ namespace NOIChaos
                     float nx = (x / (float)(texture.width - 1) - 0.5f) * 2f;
                     float ny = (y / (float)(texture.height - 1) - 0.5f) * 2f;
                     float distance = Mathf.Sqrt(nx * nx + ny * ny);
-                    float alpha = Mathf.SmoothStep(0f, 0.72f, Mathf.InverseLerp(0.35f, 1.1f, distance));
+                    float alpha = Mathf.SmoothStep(0f, 0.52f, Mathf.InverseLerp(0.42f, 1.12f, distance));
                     texture.SetPixel(x, y, new Color(0f, 0.01f, 0.02f, alpha));
                 }
             }
@@ -716,6 +728,24 @@ namespace NOIChaos
             {
                 elapsed += Time.unscaledDeltaTime;
                 flashCanvasGroup.alpha = Mathf.Clamp01(1f - elapsed / 0.45f);
+                yield return null;
+            }
+            flashCanvasGroup.alpha = 0f;
+        }
+
+        private IEnumerator ElectricFlashRoutine()
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                flashCanvasGroup.alpha = i % 2 == 0 ? 0.92f : 0.18f;
+                yield return new WaitForSecondsRealtime(0.055f);
+            }
+
+            float elapsed = 0f;
+            while (elapsed < 0.35f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                flashCanvasGroup.alpha = Mathf.Clamp01(0.8f - elapsed / 0.35f * 0.8f);
                 yield return null;
             }
             flashCanvasGroup.alpha = 0f;

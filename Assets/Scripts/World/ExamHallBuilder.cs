@@ -19,7 +19,7 @@ namespace NOIChaos
         private static readonly Color Cyan = new Color(0.24f, 0.96f, 0.92f);
         private static readonly Color Gold = new Color(1f, 0.67f, 0.15f);
         private static readonly Color Cream = new Color(0.82f, 0.79f, 0.68f);
-        private static readonly Color WarmWall = new Color(0.33f, 0.31f, 0.28f);
+        private static readonly Color WarmWall = new Color(0.39f, 0.37f, 0.33f);
         private static readonly Color DeskBlue = new Color(0.09f, 0.14f, 0.21f);
 
         public static ExamHallWorld Build(GameManager manager)
@@ -52,18 +52,19 @@ namespace NOIChaos
         {
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = 0.009f;
+            RenderSettings.fogDensity = 0.0065f;
             RenderSettings.fogColor = new Color(0.035f, 0.06f, 0.09f);
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.3f, 0.34f, 0.4f);
+            RenderSettings.ambientLight = new Color(0.41f, 0.44f, 0.49f);
+            RenderSettings.ambientIntensity = 1.18f;
             RenderSettings.reflectionIntensity = 0.35f;
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
         }
 
         private static void BuildRoom()
         {
-            CreateCube("Floor", new Vector3(0f, -0.16f, 0f), new Vector3(30f, 0.32f, 21f), new Color(0.1f, 0.12f, 0.16f), true, 0.24f, 0.06f);
-            CreateCube("Ceiling", new Vector3(0f, 5.55f, 0f), new Vector3(30f, 0.22f, 21f), new Color(0.08f, 0.09f, 0.11f), true, 0.1f, 0.02f);
+            CreateCube("Floor", new Vector3(0f, -0.16f, 0f), new Vector3(30f, 0.32f, 21f), new Color(0.13f, 0.15f, 0.19f), true, 0.24f, 0.06f);
+            CreateCube("Ceiling", new Vector3(0f, 5.55f, 0f), new Vector3(30f, 0.22f, 21f), new Color(0.1f, 0.11f, 0.13f), true, 0.1f, 0.02f);
             CreateCube("Back wall", new Vector3(0f, 2.7f, 10.35f), new Vector3(30f, 5.5f, 0.28f), WarmWall, true, 0.05f, 0.03f);
             CreateCube("Front wall", new Vector3(0f, 2.7f, -10.35f), new Vector3(30f, 5.5f, 0.28f), WarmWall * 0.82f, true, 0.04f, 0.02f);
             CreateCube("Left wall", new Vector3(-14.85f, 2.7f, 0f), new Vector3(0.3f, 5.5f, 21f), WarmWall * 0.9f, true, 0.03f, 0.02f);
@@ -132,7 +133,7 @@ namespace NOIChaos
             Light directional = directionalObject.AddComponent<Light>();
             directional.type = LightType.Directional;
             directional.color = new Color(0.7f, 0.83f, 1f);
-            directional.intensity = 0.8f;
+            directional.intensity = 1f;
             directional.shadows = LightShadows.Soft;
             directional.shadowStrength = 0.75f;
             directionalObject.transform.rotation = Quaternion.Euler(38f, 128f, 0f);
@@ -146,7 +147,7 @@ namespace NOIChaos
                 Light light = lightObject.AddComponent<Light>();
                 light.type = LightType.Point;
                 light.range = 9.5f;
-                light.intensity = 2.1f;
+                light.intensity = 2.6f;
                 light.color = new Color(1f, 0.82f, 0.61f);
                 light.shadows = LightShadows.Soft;
                 light.shadowStrength = 0.5f;
@@ -238,7 +239,7 @@ namespace NOIChaos
             if (occupied)
             {
                 Color shirt = index == 0 ? new Color(0.66f, 0.18f, 0.14f) : new Color(0.15f, 0.32f, 0.6f);
-                BuildSeatedCandidate(desk, new Vector3(0f, 0f, -1.01f), shirt, index == 0);
+                BuildSeatedCandidate(desk, new Vector3(0f, 0f, -1.01f), shirt, index == 0, candidateName);
             }
 
             InteractionPoint interaction = desk.gameObject.AddComponent<InteractionPoint>();
@@ -303,7 +304,7 @@ namespace NOIChaos
             }
         }
 
-        private static void BuildSeatedCandidate(Transform parent, Vector3 localPosition, Color shirtColor, bool clueCandidate)
+        private static void BuildSeatedCandidate(Transform parent, Vector3 localPosition, Color shirtColor, bool clueCandidate, string candidateName)
         {
             Transform candidate = new GameObject(clueCandidate ? "Candidate // 林小满" : "Candidate").transform;
             candidate.SetParent(parent);
@@ -315,12 +316,15 @@ namespace NOIChaos
             CreateCapsule("Left arm", new Vector3(-0.32f, 0.97f, 0.08f), new Vector3(0.14f, 0.4f, 0.14f), shirtColor, candidate);
             CreateCapsule("Right arm", new Vector3(0.32f, 0.97f, 0.08f), new Vector3(0.14f, 0.4f, 0.14f), shirtColor, candidate);
 
+            BoxCollider trigger = candidate.gameObject.AddComponent<BoxCollider>();
+            trigger.size = new Vector3(0.9f, 1.95f, 0.9f);
+            trigger.center = new Vector3(0f, 0.98f, 0f);
+            trigger.isTrigger = true;
+            PunchableTarget punchable = candidate.gameObject.AddComponent<PunchableTarget>();
+            punchable.Configure(clueCandidate ? "林小满" : candidateName, false, candidate);
+
             if (clueCandidate)
             {
-                BoxCollider trigger = candidate.gameObject.AddComponent<BoxCollider>();
-                trigger.size = new Vector3(0.9f, 1.95f, 0.9f);
-                trigger.center = new Vector3(0f, 0.98f, 0f);
-                trigger.isTrigger = true;
                 InteractionPoint point = candidate.gameObject.AddComponent<InteractionPoint>();
                 point.Configure("小声问林小满", () =>
                 {
@@ -620,6 +624,19 @@ namespace NOIChaos
                 new Vector3(10.8f, 0f, 4.3f)
             }, new Color(0.24f, 0.17f, 0.19f), "陈老师");
             world.RegisterInvigilator(secondAgent);
+
+            GameObject security = new GameObject("Security guard");
+            security.transform.SetParent(root);
+            security.transform.position = new Vector3(12.5f, 0f, 7.1f);
+            InvigilatorAgent securityAgent = security.AddComponent<InvigilatorAgent>();
+            securityAgent.ConfigureSecurity(game, new[]
+            {
+                new Vector3(12.5f, 0f, 7.1f),
+                new Vector3(12.5f, 0f, 0.2f),
+                new Vector3(12.5f, 0f, -7.4f),
+                new Vector3(12.5f, 0f, 0.2f)
+            });
+            world.RegisterInvigilator(securityAgent);
         }
 
         private static void BuildDust()

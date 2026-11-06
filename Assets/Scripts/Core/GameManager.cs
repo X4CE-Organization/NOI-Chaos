@@ -22,6 +22,7 @@ namespace NOIChaos
         private bool smokeTest;
         private bool smokeTestFinished;
         private float smokeTestStartedAt;
+        private bool shockActive;
 
         private void Awake()
         {
@@ -54,7 +55,13 @@ namespace NOIChaos
             UI.ShowTitle();
             AudioDirector.StartAmbient();
 
-            if (HasCommandLineArgument("-noiSmokeTest"))
+            if (HasCommandLineArgument("-noiSecuritySmokeTest"))
+            {
+                smokeTest = true;
+                smokeTestStartedAt = Time.realtimeSinceStartup;
+                StartCoroutine(RunSecuritySmokeTest());
+            }
+            else if (HasCommandLineArgument("-noiSmokeTest"))
             {
                 smokeTest = true;
                 smokeTestStartedAt = Time.realtimeSinceStartup;
@@ -316,6 +323,41 @@ namespace NOIChaos
             }
 
             World.AlertInvigilators(position, radius, dramatic);
+            if (dramatic)
+            {
+                World.AlertSecurity(position);
+            }
+        }
+
+        public void AlertSecurity(Vector3 position, string reason)
+        {
+            if (World != null)
+            {
+                World.AlertSecurity(position);
+            }
+        }
+
+        public void SecurityShock(string reason)
+        {
+            if (!IsPlaying || shockActive)
+            {
+                return;
+            }
+
+            shockActive = true;
+            StartCoroutine(SecurityShockRoutine(reason));
+        }
+
+        private IEnumerator SecurityShockRoutine(string reason)
+        {
+            Session.AddSuspicion(100f);
+            Player.SetControl(false);
+            PlayerCamera.SetControl(false);
+            AudioDirector.PlayShock();
+            UI.ElectricFlash();
+            UI.Toast("安保电击：不许动！", new Color(0.35f, 0.95f, 1f));
+            yield return new WaitForSeconds(0.65f);
+            EndRun(false, "结局：被保安电击", reason + "\n\n你的视野白了一秒。耳鸣中，监考老师平静地收走了答题纸。\n\n声势很大，但显然不是一道可执行算法。");
         }
 
         public void DistractAll(Vector3 position, float duration)
@@ -430,6 +472,33 @@ namespace NOIChaos
                 yield break;
             }
 
+            PunchableTarget[] punchTargets = FindObjectsOfType<PunchableTarget>();
+            PunchableTarget candidateTarget = null;
+            for (int i = 0; i < punchTargets.Length; i++)
+            {
+                if (punchTargets[i].DisplayName != null && punchTargets[i].DisplayName.StartsWith("选手"))
+                {
+                    candidateTarget = punchTargets[i];
+                    break;
+                }
+            }
+            if (candidateTarget == null)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - no punchable candidate found.");
+                Application.Quit(1);
+                yield break;
+            }
+            candidateTarget.ReceivePunch(Player);
+            yield return null;
+            if (Session.Suspicion < 20f)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - punching did not raise suspicion.");
+                Application.Quit(1);
+                yield break;
+            }
+
             PaperBallProjectile.Throw(this, PlayerCamera.GetComponent<Camera>(), Player);
             yield return null;
             if (Session.CopiedAnswerCount < 1 || Session.PaperBallsThrown < 1)
@@ -449,12 +518,65 @@ namespace NOIChaos
             smokeTestFinished = true;
             if (Session.Phase == GamePhase.Ended && Session.Victory)
             {
-                Debug.Log("[NOI SmokeTest] PASS - boot, seat sit/stand, seated answer copy, paper ball and copied-answer victory flow succeeded.");
+                Debug.Log("[NOI SmokeTest] PASS - boot, seat concealment, sit/stand, copy, punch, paper ball and copied-answer victory succeeded.");
                 Application.Quit(0);
             }
             else
             {
                 Debug.LogError("[NOI SmokeTest] FAIL - victory flow did not complete.");
+                Application.Quit(1);
+            }
+        }
+
+        private IEnumerator RunSecuritySmokeTest()
+        {
+            yield return new WaitForSecondsRealtime(1.2f);
+            StartGame();
+            yield return new WaitForSecondsRealtime(1.1f);
+            if (!IsPlaying || World == null)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - security test could not enter play mode.");
+                Application.Quit(1);
+                yield break;
+            }
+
+            bool hasSecurity = false;
+            for (int i = 0; i < World.Invigilators.Count; i++)
+            {
+                if (World.Invigilators[i].IsSecurityGuard)
+                {
+                    hasSecurity = true;
+                    break;
+                }
+            }
+            if (!hasSecurity)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - security guard was not created.");
+                Application.Quit(1);
+                yield break;
+            }
+
+            GameObject playerStation = GameObject.Find("Your station");
+            Transform playerChair = playerStation != null ? playerStation.transform.Find("Chair") : null;
+            Player.SitAt(playerChair);
+            yield return null;
+            AlertSecurity(Player.transform.position, "SMOKE SECURITY ALERT");
+            float securityDeadline = Time.realtimeSinceStartup + 8f;
+            while (Session.Phase == GamePhase.Playing && Time.realtimeSinceStartup < securityDeadline)
+            {
+                yield return null;
+            }
+            smokeTestFinished = true;
+            if (Session.Phase == GamePhase.Ended && !Session.Victory && Session.EndingTitle.Contains("电击"))
+            {
+                Debug.Log("[NOI SmokeTest] PASS - security guard heard the alert, reached the player and delivered the electric-shock ending.");
+                Application.Quit(0);
+            }
+            else
+            {
+                Debug.LogError($"[NOI SmokeTest] FAIL - electric-shock ending did not complete. Phase={Session.Phase}, Victory={Session.Victory}, Title={Session.EndingTitle}");
                 Application.Quit(1);
             }
         }

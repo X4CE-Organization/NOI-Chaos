@@ -34,8 +34,11 @@ namespace NOIChaos
         private float animationTime;
         private Color patrolConeColor = new Color(1f, 0.68f, 0.2f, 0.065f);
         private Color alertConeColor = new Color(1f, 0.17f, 0.12f, 0.16f);
+        private bool securityGuard;
+        private bool shockDelivered;
 
         public bool SeesPlayer => seesPlayer;
+        public bool IsSecurityGuard => securityGuard;
 
         public void Configure(GameManager manager, Vector3[] patrolRoute, Color uniformColor, string displayName)
         {
@@ -45,7 +48,23 @@ namespace NOIChaos
             name = "Invigilator // " + displayName;
             BuildVisual(uniformColor);
             BuildVisionCone();
+            gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+            CapsuleCollider bodyCollider = gameObject.AddComponent<CapsuleCollider>();
+            bodyCollider.center = new Vector3(0f, 0.95f, 0f);
+            bodyCollider.height = 1.95f;
+            bodyCollider.radius = 0.38f;
+            bodyCollider.isTrigger = true;
+            PunchableTarget punchable = gameObject.AddComponent<PunchableTarget>();
+            punchable.Configure(displayName, true, visualRoot);
             state = AgentState.Patrol;
+        }
+
+        public void ConfigureSecurity(GameManager manager, Vector3[] patrolRoute)
+        {
+            Configure(manager, patrolRoute, new Color(0.055f, 0.065f, 0.075f), "保安");
+            securityGuard = true;
+            speed = 2.15f;
+            BuildSecurityGear();
         }
 
         private void Update()
@@ -72,11 +91,15 @@ namespace NOIChaos
             }
 
             seesPlayer = CanSeePlayer();
+            if (securityGuard && state == AgentState.Patrol)
+            {
+                seesPlayer = false;
+            }
             if (seesPlayer)
             {
                 investigatePoint = game.Player.transform.position;
                 investigateTimer = 4.2f;
-                state = AgentState.Observe;
+                state = securityGuard ? AgentState.Investigate : AgentState.Observe;
 
                 float distance = Vector3.Distance(transform.position, game.Player.transform.position);
                 float suspicionRate = Mathf.Lerp(20f, 7f, Mathf.Clamp01(distance / 11f));
@@ -92,13 +115,28 @@ namespace NOIChaos
 
                 if (distance < 1.45f)
                 {
-                    game.Caught("你与监考老师的距离已经小于一次编译错误。");
+                    if (securityGuard)
+                    {
+                        game.SecurityShock("保安沿着噪音扑了过来，电击器在你眼前亮起蓝光。");
+                    }
+                    else
+                    {
+                        game.Caught("你与监考老师的距离已经小于一次编译错误。");
+                    }
                     return;
                 }
             }
             else if (state == AgentState.Observe)
             {
                 state = AgentState.Investigate;
+            }
+
+            if (securityGuard && state == AgentState.Investigate && !shockDelivered &&
+                Vector3.Distance(transform.position, game.Player.transform.position) < 2.05f)
+            {
+                shockDelivered = true;
+                game.SecurityShock("保安沿着噪音扑了过来，电击器在你眼前亮起蓝光。");
+                return;
             }
 
             UpdateConeColor();
@@ -136,6 +174,11 @@ namespace NOIChaos
         private bool CanSeePlayer()
         {
             if (game.Player == null)
+            {
+                return false;
+            }
+
+            if (game.Player.IsConcealedAtSeat)
             {
                 return false;
             }
@@ -179,7 +222,7 @@ namespace NOIChaos
             if (state == AgentState.Investigate)
             {
                 investigateTimer -= Time.deltaTime;
-                MoveToward(investigatePoint, 2.2f);
+                MoveToward(investigatePoint, securityGuard ? 3.35f : 2.2f);
                 if (Vector3.Distance(transform.position, investigatePoint) < 1.2f)
                 {
                     waitTimer += Time.deltaTime;
@@ -247,6 +290,14 @@ namespace NOIChaos
                 transform.rotation,
                 Quaternion.LookRotation(direction),
                 1f - Mathf.Exp(-7f * Time.deltaTime));
+        }
+
+        private void BuildSecurityGear()
+        {
+            CreatePart("Security vest", PrimitiveType.Cube, visualRoot, new Vector3(0f, 1.08f, 0.2f), new Vector3(0.62f, 0.48f, 0.07f), new Color(0.82f, 0.67f, 0.08f));
+            CreatePart("Security cap", PrimitiveType.Cylinder, visualRoot, new Vector3(0f, 1.93f, 0f), new Vector3(0.42f, 0.07f, 0.42f), new Color(0.04f, 0.05f, 0.06f));
+            CreatePart("Taser grip", PrimitiveType.Cube, visualRoot, new Vector3(0.5f, 0.92f, 0.12f), new Vector3(0.1f, 0.28f, 0.12f), new Color(0.12f, 0.3f, 0.38f));
+            CreatePart("Taser tip", PrimitiveType.Sphere, visualRoot, new Vector3(0.5f, 1.1f, 0.12f), new Vector3(0.08f, 0.08f, 0.08f), new Color(0.2f, 0.9f, 1f));
         }
 
         private void Animate()
