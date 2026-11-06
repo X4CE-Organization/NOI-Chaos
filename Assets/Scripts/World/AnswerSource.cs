@@ -13,6 +13,8 @@ namespace NOIChaos
         private string answer;
         private float quality;
 
+        public string SourceName => sourceName;
+
         public bool CanCopy =>
             GameManager.Instance != null &&
             GameManager.Instance.Session != null &&
@@ -35,14 +37,16 @@ namespace NOIChaos
             }
 
             game.Session.AddCopiedAnswer(sourceId, sourceName, answer, quality);
-            float risk = player.IsCrouching ? 5f : 11f;
+            float risk = player.IsCrouching ? 5f : (player.IsSeated ? 7f : 11f);
             game.AddSuspicion(risk);
             game.ReportNoise(transform.position, player.IsCrouching ? 1.8f : 3.5f);
             game.AudioDirector.PlayConfirm();
 
             string warning = player.IsCrouching
                 ? "你压低了身体，把答案记进草稿纸。"
-                : "你站得太直，附近的人可能都看见了。";
+                : (player.IsSeated
+                    ? "你没有离开座位，只是把头转得有点过分。"
+                    : "你站得太直，附近的人可能都看见了。");
             game.Toast($"抄录 {game.Session.CopiedAnswerCount}/{game.Session.MaxCopiedAnswers}：{answer}\n{warning}", new Color(1f, 0.7f, 0.27f));
         }
     }

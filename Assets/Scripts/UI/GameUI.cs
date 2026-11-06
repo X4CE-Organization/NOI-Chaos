@@ -25,6 +25,7 @@ namespace NOIChaos
         private Text promptText;
         private Text notebookText;
         private Text timerText;
+        private Text controlHintText;
         private Text toastText;
         private Text endTitleText;
         private Text endBodyText;
@@ -181,6 +182,12 @@ namespace NOIChaos
                 Mathf.Clamp01(suspicion * 1.25f));
             suspicionText.text = $"怀疑度  {Mathf.RoundToInt(session.Suspicion):00}%";
             suspicionText.color = suspicion > 0.72f ? new Color(1f, 0.45f, 0.34f) : new Color(0.77f, 0.84f, 0.87f);
+            if (controlHintText != null)
+            {
+                controlHintText.text = session.IsSeated
+                    ? "坐姿动作：鼠标观察   ·   F 侧头偷看   ·   G 扔纸团   ·   E / 左键 站起   ·   Tab 笔记"
+                    : "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团   ·   Tab 笔记";
+            }
 
             if (clueListText != null)
             {
@@ -267,7 +274,9 @@ namespace NOIChaos
             builder.AppendLine($"· 扔出纸团：{game.Session.PaperBallsThrown}");
             builder.AppendLine();
             builder.AppendLine("<color=#F2AA3C>操作</color>  WASD 移动  ·  鼠标观察  ·  Shift 奔跑");
-            builder.AppendLine("C 蹲伏  ·  F 抄答案  ·  G 扔纸团  ·  E 交互  ·  Tab 关闭");
+            builder.AppendLine(game.Session.IsSeated
+                ? "坐姿：F 侧头偷看  ·  G 扔纸团  ·  E/左键 站起  ·  移动动作禁用"
+                : "C 蹲伏  ·  F 抄答案  ·  G 扔纸团  ·  E/左键 交互  ·  Tab 关闭");
             notebookText.text = builder.ToString();
         }
 
@@ -367,7 +376,7 @@ namespace NOIChaos
             Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -205f), new Vector2(360f, 72f));
             startButton.onClick.AddListener(game.StartGame);
 
-            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   E 交互   ·   F 抄答案   ·   G 扔纸团", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
+            Text startHint = CreateText("Start hint", titleRoot.transform, "WASD 移动   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团", 18, new Color(0.49f, 0.57f, 0.59f), TextAnchor.MiddleLeft);
             Place(startHint.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(132f, -270f), new Vector2(680f, 32f));
 
             Text disclaimer = CreateText(
@@ -570,8 +579,8 @@ namespace NOIChaos
             promptOutline.effectDistance = new Vector2(2f, -2f);
             promptText.CrossFadeAlpha(0f, 0f, true);
 
-            Text hint = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   F 抄答案   ·   G 纸团   ·   E 交互   ·   Tab 笔记", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
-            Place(hint.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 40f), new Vector2(1000f, 32f));
+            controlHintText = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   左键/E 交互   ·   F 抄答案   ·   G 纸团   ·   Tab 笔记", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
+            Place(controlHintText.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 40f), new Vector2(1000f, 32f));
 
             Text watermark = CreateText("Watermark", hudRoot.transform, "EXAM HALL 03  /  2026", 17, new Color(0.95f, 0.61f, 0.16f, 0.7f), TextAnchor.MiddleRight);
             Place(watermark.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-48f, 40f), new Vector2(300f, 32f));

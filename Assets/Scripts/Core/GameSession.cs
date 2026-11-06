@@ -30,7 +30,7 @@ namespace NOIChaos
 
         public GamePhase Phase { get; private set; } = GamePhase.Title;
         public float Suspicion { get; private set; }
-        public string Objective { get; private set; } = "确认第一题的提交状态";
+        public string Objective { get; private set; } = "找到发光的 047 号座位并坐下";
         public int ClueCount => clueIds.Count;
         public int CopiedAnswerCount => copiedAnswerIds.Count;
         public float AverageCopyQuality => copiedAnswerIds.Count == 0 ? 0f : copiedQualityTotal / copiedAnswerIds.Count;
@@ -43,6 +43,8 @@ namespace NOIChaos
         public string EndingTitle { get; private set; } = string.Empty;
         public string EndingBody { get; private set; } = string.Empty;
         public bool WorkstationChecked { get; private set; }
+        public bool HasSatDown { get; private set; }
+        public bool IsSeated { get; private set; }
         public bool SideRoomFound { get; private set; }
         public bool MedalTouched { get; private set; }
         public float CoffeeBoostUntil { get; private set; }
@@ -68,13 +70,15 @@ namespace NOIChaos
             EndingTitle = string.Empty;
             EndingBody = string.Empty;
             WorkstationChecked = false;
+            HasSatDown = false;
+            IsSeated = false;
             SideRoomFound = false;
             MedalTouched = false;
             CoffeeBoostUntil = 0f;
             PaperBallsThrown = 0;
             WrongSubmissions = 0;
             RunStartedAt = Time.time;
-            Objective = "随便走走。先确认自己的机位，或者直接开始搞事";
+            Objective = "找到发光的 047 号座位并坐下";
             RaiseChanged();
         }
 
@@ -157,7 +161,29 @@ namespace NOIChaos
             }
 
             WorkstationChecked = true;
-            UpdateOpenObjective();
+            if (!HasSatDown && clueIds.Count == 0 && copiedAnswerIds.Count == 0)
+            {
+                Objective = "座位在你的机位后方：靠近椅子按 E 或鼠标左键坐下";
+            }
+            else
+            {
+                UpdateOpenObjective();
+            }
+            RaiseChanged();
+        }
+
+        public void SetSeated(bool seated)
+        {
+            IsSeated = seated;
+            if (seated)
+            {
+                HasSatDown = true;
+                Objective = "坐姿可用：F 侧头偷看 · G 扔纸团 · E 站起 · 鼠标观察";
+            }
+            else
+            {
+                UpdateOpenObjective();
+            }
             RaiseChanged();
         }
 
@@ -243,7 +269,15 @@ namespace NOIChaos
 
         private void UpdateOpenObjective()
         {
-            if (clueIds.Count >= MaxClues)
+            if (IsSeated)
+            {
+                Objective = "坐姿可用：F 侧头偷看 · G 扔纸团 · E 站起 · 鼠标观察";
+            }
+            else if (!HasSatDown && clueIds.Count == 0 && copiedAnswerIds.Count == 0)
+            {
+                Objective = "找到发光的 047 号座位并坐下";
+            }
+            else if (clueIds.Count >= MaxClues)
             {
                 Objective = "三条灵感已齐。可以交卷，也可以继续把考场搅乱";
             }

@@ -21,6 +21,8 @@ namespace NOIChaos
         private float footstepTimer;
         private bool controlEnabled;
         private bool crouching;
+        private bool seated;
+        private Transform seatedChair;
         private InteractionPoint currentInteraction;
         private AnswerSource currentAnswerSource;
         private InteractionPoint highlightedInteraction;
@@ -28,8 +30,9 @@ namespace NOIChaos
         private readonly Collider[] interactionHits = new Collider[24];
 
         public bool IsCrouching => crouching;
+        public bool IsSeated => seated;
         public bool IsSprinting { get; private set; }
-        public float EyeHeight => crouching ? 1.05f : 1.58f;
+        public float EyeHeight => seated ? 1.32f : (crouching ? 1.05f : 1.58f);
         public Transform ViewTarget { get; private set; }
 
         public static ThirdPersonPlayer Create(GameManager manager, Vector3 position)
@@ -94,6 +97,17 @@ namespace NOIChaos
                 return;
             }
 
+            if (seated)
+            {
+                HandleSeatedActions();
+                AnimateSeated();
+                if (session.Suspicion > 0f)
+                {
+                    session.ReduceSuspicion(Time.deltaTime * 0.7f);
+                }
+                return;
+            }
+
             HandleMovement();
             HandleInteraction();
             Animate();
@@ -107,6 +121,61 @@ namespace NOIChaos
         public void SetControl(bool enabled)
         {
             controlEnabled = enabled;
+        }
+
+        public void SitAt(Transform chair)
+        {
+            if (seated || chair == null || GameManager.Instance == null || !GameManager.Instance.IsPlaying)
+            {
+                return;
+            }
+
+            if (crouching)
+            {
+                TryToggleCrouch();
+            }
+
+            seated = true;
+            seatedChair = chair;
+            SetInteraction(null);
+            controller.enabled = false;
+            transform.position = chair.position + Vector3.up * 0.03f;
+            transform.rotation = Quaternion.Euler(0f, chair.eulerAngles.y, 0f);
+            visualRoot.localPosition = new Vector3(0f, -0.23f, 0f);
+            leftLeg.localRotation = Quaternion.Euler(78f, 0f, -4f);
+            rightLeg.localRotation = Quaternion.Euler(78f, 0f, 4f);
+            leftArm.localRotation = Quaternion.Euler(-42f, 0f, -8f);
+            rightArm.localRotation = Quaternion.Euler(-42f, 0f, 8f);
+            ViewTarget.localPosition = new Vector3(0f, EyeHeight, 0f);
+            GameManager.Instance.Session.SetSeated(true);
+            GameManager.Instance.AudioDirector.PlayConfirm();
+            GameManager.Instance.Toast("坐下了。移动键失效：你现在只能观察、偷看、扔纸团或站起。", new Color(0.45f, 1f, 0.8f));
+        }
+
+        public void StandUp()
+        {
+            if (!seated)
+            {
+                return;
+            }
+
+            Vector3 standPosition = seatedChair != null
+                ? seatedChair.position + new Vector3(0f, 0.05f, -0.9f)
+                : transform.position + Vector3.up * 0.05f;
+            seated = false;
+            seatedChair = null;
+            transform.position = standPosition;
+            transform.rotation = Quaternion.identity;
+            visualRoot.localPosition = Vector3.zero;
+            leftLeg.localRotation = Quaternion.identity;
+            rightLeg.localRotation = Quaternion.identity;
+            leftArm.localRotation = Quaternion.identity;
+            rightArm.localRotation = Quaternion.identity;
+            ViewTarget.localPosition = new Vector3(0f, EyeHeight, 0f);
+            controller.enabled = true;
+            GameManager.Instance.Session.SetSeated(false);
+            GameManager.Instance.AudioDirector.PlayStep(false);
+            GameManager.Instance.Toast("站起来了。移动、跳跃、奔跑和蹲伏已恢复。");
         }
 
         private void HandleMovement()
@@ -236,7 +305,7 @@ namespace NOIChaos
             if (currentInteraction != null)
             {
                 prompt = $"[E]  {currentInteraction.Prompt}";
-                if (Input.GetKeyDown(KeyCode.E))
+                if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
                 {
                     currentInteraction.Interact();
                 }
@@ -253,6 +322,62 @@ namespace NOIChaos
             }
 
             GameManager.Instance.UI.SetPrompt(prompt);
+        }
+
+        private void HandleSeatedActions()
+        {
+            AnswerSource bestSource = null;
+            float bestDistance = 6.5f;
+            AnswerSource[] sources = FindObjectsOfType<AnswerSource>();
+            for (int i = 0; i < sources.Length; i++)
+            {
+                AnswerSource source = sources[i];
+                if (!source.CanCopy)
+                {
+                    continue;
+                }
+
+                float distance = Vector3.Distance(transform.position, source.transform.position);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestSource = source;
+                }
+            }
+
+            string sourcePrompt = bestSource != null
+                ? $"     [F]  侧头偷看 {bestSource.SourceName} 的屏幕"
+                : string.Empty;
+            GameManager.Instance.UI.SetPrompt($"[E / 左键]  站起{sourcePrompt}     [G]  扔纸团");
+
+            if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+            {
+                StandUp();
+                return;
+            }
+
+            if (bestSource != null && Input.GetKeyDown(KeyCode.F))
+            {
+                bestSource.Copy(this);
+            }
+
+            paperBallCooldown -= Time.deltaTime;
+            if (Input.GetKeyDown(KeyCode.G) && paperBallCooldown <= 0f)
+            {
+                paperBallCooldown = 0.45f;
+                PaperBallProjectile.Throw(GameManager.Instance, GameManager.Instance.PlayerCamera.GetComponent<Camera>(), this);
+                GameManager.Instance.Session.AddSuspicion(4f);
+                GameManager.Instance.Toast("你坐着把纸团扔了出去。动作幅度过于明显。", new Color(1f, 0.58f, 0.3f));
+            }
+        }
+
+        private void AnimateSeated()
+        {
+            animationTime += Time.deltaTime * 1.4f;
+            float breathing = Mathf.Sin(animationTime) * 0.008f;
+            visualRoot.localPosition = new Vector3(0f, -0.23f + breathing, 0f);
+            leftArm.localRotation = Quaternion.Euler(-42f + Mathf.Sin(animationTime * 0.7f) * 2f, 0f, -8f);
+            rightArm.localRotation = Quaternion.Euler(-42f - Mathf.Sin(animationTime * 0.7f) * 2f, 0f, 8f);
         }
 
         private void FindNearbyTargets(out InteractionPoint nearestInteraction, out AnswerSource nearestAnswer)

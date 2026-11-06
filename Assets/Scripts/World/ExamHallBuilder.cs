@@ -82,7 +82,7 @@ namespace NOIChaos
             {
                 for (int col = 0; col < 3; col++)
                 {
-                    float x = -7.2f + col * 7.2f;
+                    float x = -5.35f + col * 5.35f;
                     float z = -5.2f + row * 3.45f;
                     CreateCube("Floor island", new Vector3(x, 0.006f, z), new Vector3(4.15f, 0.012f, 2.65f), new Color(0.075f, 0.1f, 0.14f), false, 0.1f, 0.1f);
                     CreateCube("Island edge", new Vector3(x, 0.014f, z + 1.33f), new Vector3(4.15f, 0.018f, 0.035f), new Color(0.06f, 0.46f, 0.5f), false, 0.4f, 0.4f, 0.2f);
@@ -181,7 +181,7 @@ namespace NOIChaos
             {
                 for (int col = 0; col < 3; col++)
                 {
-                    float x = -7.2f + col * 7.2f;
+                    float x = -5.35f + col * 5.35f;
                     float z = -5.2f + row * 3.45f;
                     bool isPlayerDesk = row == 0 && col == 1;
                     string candidateName = candidateNames[index];
@@ -222,6 +222,18 @@ namespace NOIChaos
             CreateCube("Seat", Vector3.zero + Vector3.up * 0.48f, new Vector3(0.76f, 0.1f, 0.73f), new Color(0.08f, 0.1f, 0.13f), true, 0.3f, 0.28f, 0f, chair);
             CreateCube("Back", new Vector3(0f, 0.89f, -0.34f), new Vector3(0.76f, 0.78f, 0.1f), new Color(0.06f, 0.11f, 0.15f), false, 0.2f, 0.28f, 0f, chair);
             CreateCube("Chair post", new Vector3(0f, 0.23f, 0f), new Vector3(0.1f, 0.45f, 0.1f), new Color(0.12f, 0.14f, 0.16f), false, 0.5f, 0.15f, 0f, chair);
+
+            if (isPlayerDesk)
+            {
+                CreateCube("Your seat glow", new Vector3(0f, 0.02f, 0f), new Vector3(1.22f, 0.018f, 1.12f), new Color(0.15f, 0.9f, 0.76f), false, 0.1f, 0.4f, 0.8f, chair);
+                WorldLabel("你的座位  /  SEAT 047", chair, new Vector3(0f, 1.24f, -0.36f), 0.065f, new Color(0.58f, 1f, 0.87f), 40);
+                InteractionPoint seatPoint = chair.gameObject.AddComponent<InteractionPoint>();
+                seatPoint.Configure(
+                    "坐下（E / 左键）  /  SEAT 047",
+                    () => game.Player.SitAt(chair),
+                    true,
+                    new Vector3(0f, 1.03f, 0f));
+            }
 
             if (occupied)
             {

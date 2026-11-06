@@ -130,8 +130,8 @@ namespace NOIChaos
             PlayerCamera.SetControl(true);
             SetCursorLocked(true);
             UI.Toast("08:59:59  //  第一题 Accepted", new Color(0.45f, 1f, 0.72f));
-            ToastLater("但你盯着第二题，决定今天不能只拿一个 Accepted。", 2.6f);
-            ToastLater("自由行动：靠近别人的屏幕按 F 抄答案，按 G 扔纸团制造动静。", 5.2f);
+            ToastLater("发光椅子就是你的 047 号座位：按 E 或鼠标左键坐下。", 2.6f);
+            ToastLater("坐下后移动会失效：F 侧头偷看，G 扔纸团，E 站起。", 5.2f);
             transitionLocked = false;
         }
 
@@ -402,12 +402,34 @@ namespace NOIChaos
                 yield break;
             }
 
+            GameObject playerStation = GameObject.Find("Your station");
+            Transform playerChair = playerStation != null ? playerStation.transform.Find("Chair") : null;
+            Player.SitAt(playerChair);
+            yield return null;
+            if (!Player.IsSeated || !Session.IsSeated)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - player could not sit at seat 047.");
+                Application.Quit(1);
+                yield break;
+            }
+
             Session.AddClue(0, "SMOKE INSPIRATION");
             AnswerSource[] sources = FindObjectsOfType<AnswerSource>();
             if (sources.Length > 0)
             {
                 sources[0].Copy(Player);
             }
+            Player.StandUp();
+            yield return null;
+            if (Player.IsSeated || Session.IsSeated)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - player could not stand up.");
+                Application.Quit(1);
+                yield break;
+            }
+
             PaperBallProjectile.Throw(this, PlayerCamera.GetComponent<Camera>(), Player);
             yield return null;
             if (Session.CopiedAnswerCount < 1 || Session.PaperBallsThrown < 1)
@@ -427,7 +449,7 @@ namespace NOIChaos
             smokeTestFinished = true;
             if (Session.Phase == GamePhase.Ended && Session.Victory)
             {
-                Debug.Log("[NOI SmokeTest] PASS - boot, scene, UI, answer copying, paper ball and copied-answer victory flow succeeded.");
+                Debug.Log("[NOI SmokeTest] PASS - boot, seat sit/stand, seated answer copy, paper ball and copied-answer victory flow succeeded.");
                 Application.Quit(0);
             }
             else
@@ -446,11 +468,11 @@ namespace NOIChaos
 
             StartGame();
             yield return new WaitForSecondsRealtime(1.2f);
-            AnswerSource source = FindObjectOfType<AnswerSource>();
-            if (source != null)
+            GameObject playerStation = GameObject.Find("Your station");
+            Transform playerChair = playerStation != null ? playerStation.transform.Find("Chair") : null;
+            if (playerChair != null)
             {
-                Player.transform.position = source.transform.position + new Vector3(0f, 0.05f, -1.8f);
-                Player.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                Player.SitAt(playerChair);
             }
             yield return new WaitForSecondsRealtime(1.4f);
             yield return CapturePng("/tmp/noi-game.png");
