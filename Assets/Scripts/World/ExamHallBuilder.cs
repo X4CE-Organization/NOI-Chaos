@@ -249,20 +249,7 @@ namespace NOIChaos
             }
             else if (isPlayerDesk)
             {
-                interaction.Configure("查看自己的 NOI 机位", () =>
-                {
-                    if (!game.Session.WorkstationChecked)
-                    {
-                        game.Session.MarkWorkstationChecked();
-                        game.AudioDirector.PlayConfirm();
-                        game.Toast("T1  Accepted  //  T2  未通过", new Color(0.42f, 1f, 0.72f));
-                        game.StartCoroutine(DelayedToast("监考：第一题不错。第二题还有 8 小时 59 分。", 2.1f));
-                    }
-                    else
-                    {
-                        game.Toast("屏幕上只有一句冷酷的提示：RE-TRY LATER.");
-                    }
-                });
+                interaction.Configure("打开自己的 NOI 做题终端", () => game.OpenExamTerminal());
             }
             else
             {
@@ -273,33 +260,10 @@ namespace NOIChaos
                 }, true);
             }
 
-            string copiedAnswer = null;
-            string answerOwner = candidateName;
-            float answerQuality = 0f;
-            switch (index)
+            bool hasExamCode = index == 0 || index == 2 || index == 3 || index == 5 || index == 7 || index == 8;
+            if (hasExamCode)
             {
-                case 2:
-                    copiedAnswer = "反向边最短路 + 分治合并";
-                    answerQuality = 0.77f;
-                    break;
-                case 3:
-                    copiedAnswer = "离线分块 DP";
-                    answerQuality = 0.69f;
-                    break;
-                case 5:
-                    copiedAnswer = "随机爬山 + 骗分特判";
-                    answerQuality = 0.58f;
-                    break;
-                case 7:
-                    copiedAnswer = "多源反向 + 倍增合并";
-                    answerQuality = 0.82f;
-                    break;
-            }
-
-            if (copiedAnswer != null)
-            {
-                AnswerSource source = desk.gameObject.AddComponent<AnswerSource>();
-                source.Configure(100 + index, answerOwner, copiedAnswer, answerQuality);
+                desk.gameObject.AddComponent<AnswerSource>();
                 CreateCube("Copyable answer holo", new Vector3(0.7f, 1.17f, -0.31f), new Vector3(0.1f, 0.1f, 0.012f), new Color(1f, 0.65f, 0.16f), false, 0.1f, 0.5f, 1.4f, desk);
             }
         }
@@ -412,10 +376,10 @@ namespace NOIChaos
             CreateCube("Terminal glow", new Vector3(0f, 1.22f, -0.19f), new Vector3(1.08f, 0.21f, 0.018f), Gold, false, 0.1f, 0.6f, 1.25f, terminal);
             CreateCube("Terminal side", new Vector3(-0.9f, 0.98f, 0f), new Vector3(0.12f, 0.85f, 0.56f), Teal, false, 0.45f, 0.25f, 0.3f, terminal);
             CreateCube("Terminal side 2", new Vector3(0.9f, 0.98f, 0f), new Vector3(0.12f, 0.85f, 0.56f), Teal, false, 0.45f, 0.25f, 0.3f, terminal);
-            WorldLabel("SUBMIT  /  T2", terminal, new Vector3(0f, 1.55f, 0f), 0.07f, Cream, 42);
+            WorldLabel("FINAL SUBMIT", terminal, new Vector3(0f, 1.55f, 0f), 0.07f, Cream, 42);
 
             InteractionPoint point = terminal.gameObject.AddComponent<InteractionPoint>();
-            point.Configure("向评测终端提交第二题思路", () => game.SubmitInsight());
+            point.Configure("确认交卷并按本局分数结算", () => game.SubmitInsight());
         }
 
         private static void BuildMedalCabinet(Transform parent)

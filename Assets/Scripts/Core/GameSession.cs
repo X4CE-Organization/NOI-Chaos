@@ -26,18 +26,19 @@ namespace NOIChaos
         private readonly HashSet<int> copiedAnswerIds = new HashSet<int>();
         private readonly List<string> copiedAnswers = new List<string>();
         private readonly List<string> inventory = new List<string>();
+        private readonly HashSet<string> copiedVariantKeys = new HashSet<string>();
         private float copiedQualityTotal;
 
         public GamePhase Phase { get; private set; } = GamePhase.Title;
         public float Suspicion { get; private set; }
         public string Objective { get; private set; } = "找到发光的 047 号座位并坐下";
         public int ClueCount => clueIds.Count;
-        public int CopiedAnswerCount => copiedAnswerIds.Count;
+        public int CopiedAnswerCount => copiedAnswerIds.Count + copiedVariantKeys.Count;
         public float AverageCopyQuality => copiedAnswerIds.Count == 0 ? 0f : copiedQualityTotal / copiedAnswerIds.Count;
         public int PaperBallsThrown { get; private set; }
         public int WrongSubmissions { get; private set; }
         public int MaxClues => 3;
-        public int MaxCopiedAnswers => 4;
+        public int MaxCopiedAnswers => 6;
         public bool Victory { get; private set; }
         public bool EndingVisible { get; private set; }
         public string EndingTitle { get; private set; } = string.Empty;
@@ -54,6 +55,8 @@ namespace NOIChaos
         public IReadOnlyList<string> ClueNames => clueNames;
         public IReadOnlyList<string> CopiedAnswers => copiedAnswers;
         public IReadOnlyList<string> Inventory => inventory;
+        public ExamRunState ExamRun { get; private set; }
+        public int ExamScore => ExamRun != null ? ExamRun.TotalScore : 0;
 
         public void ResetRun()
         {
@@ -62,6 +65,7 @@ namespace NOIChaos
             copiedAnswerIds.Clear();
             copiedAnswers.Clear();
             inventory.Clear();
+            copiedVariantKeys.Clear();
             copiedQualityTotal = 0f;
             Suspicion = 0f;
             Phase = GamePhase.Playing;
@@ -78,6 +82,8 @@ namespace NOIChaos
             PaperBallsThrown = 0;
             WrongSubmissions = 0;
             RunStartedAt = Time.time;
+            int seed = unchecked(Environment.TickCount ^ DateTime.UtcNow.Millisecond ^ DateTime.UtcNow.DayOfYear);
+            ExamRun = ExamRunState.Create(ProblemCatalog.Problems, seed);
             Objective = "找到发光的 047 号座位并坐下";
             RaiseChanged();
         }
@@ -123,6 +129,36 @@ namespace NOIChaos
         public bool HasCopiedAnswer(int id)
         {
             return copiedAnswerIds.Contains(id);
+        }
+
+        public bool RegisterExamCopy(string problemId, string variantId, string displayLabel)
+        {
+            string key = problemId + ":" + variantId;
+            if (!copiedVariantKeys.Add(key))
+            {
+                return false;
+            }
+
+            copiedAnswers.Add(displayLabel);
+            UpdateOpenObjective();
+            RaiseChanged();
+            return true;
+        }
+
+        public bool HasCopiedVariant(string problemId, string variantId)
+        {
+            return copiedVariantKeys.Contains(problemId + ":" + variantId);
+        }
+
+        public void RecordExamScore(string problemId, string variantId, int score)
+        {
+            if (ExamRun == null)
+            {
+                return;
+            }
+
+            ExamRun.GetProblemState(problemId).RecordScore(variantId, score);
+            RaiseChanged();
         }
 
         public void AddItem(string item)
@@ -178,7 +214,7 @@ namespace NOIChaos
             if (seated)
             {
                 HasSatDown = true;
-                Objective = "坐姿可用：F 侧头偷看 · G 扔纸团 · E 站起 · 鼠标观察";
+                Objective = "点击自己的电脑开始答题；F 可侧头偷看邻座代码";
             }
             else
             {
@@ -271,7 +307,7 @@ namespace NOIChaos
         {
             if (IsSeated)
             {
-                Objective = "坐姿可用：F 侧头偷看 · G 扔纸团 · E 站起 · 鼠标观察";
+                Objective = "点击自己的电脑开始答题；F 可侧头偷看邻座代码";
             }
             else if (!HasSatDown && clueIds.Count == 0 && copiedAnswerIds.Count == 0)
             {
@@ -281,13 +317,13 @@ namespace NOIChaos
             {
                 Objective = "三条灵感已齐。可以交卷，也可以继续把考场搅乱";
             }
-            else if (copiedAnswerIds.Count >= 3)
+            else if (CopiedAnswerCount >= 3)
             {
                 Objective = "已经抄到足够多的答案。继续冒险，或者现在就交卷";
             }
-            else if (clueIds.Count + copiedAnswerIds.Count > 0)
+            else if (clueIds.Count + CopiedAnswerCount > 0)
             {
-                Objective = $"自由行动：灵感 {clueIds.Count}/3 · 抄录 {copiedAnswerIds.Count}/{MaxCopiedAnswers}";
+                Objective = $"自由行动：灵感 {clueIds.Count}/3 · 抄录 {CopiedAnswerCount}/{MaxCopiedAnswers}";
             }
             else
             {

@@ -1,0 +1,42 @@
+{
+  "P1001": {
+    "correct": 255,
+    "partial": 135,
+    "template": 135
+  },
+  "P1600": {
+    "correct": 255,
+    "partial": 1,
+    "template": 0
+  },
+  "P3233": {
+    "correct": 255,
+    "partial": 61,
+    "template": 0
+  },
+  "P4069": {
+    "correct": 255,
+    "partial": 49,
+    "template": 0
+  },
+  "P2495": {
+    "correct": 255,
+    "partial": 120,
+    "template": 0
+  },
+  "P1084": {
+    "correct": 255,
+    "partial": 166,
+    "template": 0
+  },
+  "P4211": {
+    "correct": 255,
+    "partial": 128,
+    "template": 0
+  },
+  "P4426": {
+    "correct": 255,
+    "partial": 1,
+    "template": 0
+  }
+}

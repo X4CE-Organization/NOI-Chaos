@@ -1,0 +1,308 @@
+{
+  "problems": [
+    {
+      "id": "P1001",
+      "title": "A+B Problem",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P1001",
+      "statement": "输入两个整数 a 和 b，输出 a+b。\n\n这是本场考试的第一题。它故意写得比题面复杂一点，因为考场里总有人连 A+B 都要先深呼吸。",
+      "sampleInput": "114514 1919810\n",
+      "sampleOutput": "2034324\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "本题使用 int 的初始框架，数据较大时会溢出。",
+          "codeResource": "NOI/Exam/Code/P1001_template",
+          "passMask": 135,
+          "passesSample": true
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "使用 long long 的完整 A+B 实现。",
+          "codeResource": "NOI/Exam/Code/P1001_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "使用 int，简单数据正确，较大数据溢出。",
+          "codeResource": "NOI/Exam/Code/P1001_partial",
+          "passMask": 135,
+          "passesSample": true
+        }
+      ]
+    },
+    {
+      "id": "P1600",
+      "title": "[NOIP 2016 提高组] 天天爱跑步",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P1600",
+      "statement": "给定一棵 n 个节点的树。第 i 名玩家从 s_i 出发，以每秒一条边的速度沿唯一路径前往 t_i；抵达终点后立即离开。\n\n节点 j 的观察员只在第 w_j 秒观察一次。若某名玩家恰好在第 w_j 秒位于节点 j，则被观察员看见。\n\n输出每个节点 j 的观察员能观察到多少人。",
+      "sampleInput": "6 3\n2 3\n1 2\n1 4\n4 5\n4 6\n0 2 5 1 2 3\n1 5\n1 3\n2 6\n",
+      "sampleOutput": "2 0 0 1 1 1\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P1600_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "通用树上前缀计数解法，已移除官方测试点特化。",
+          "codeResource": "NOI/Exam/Code/P1600_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "错误地让玩家到达终点后继续等待观察。",
+          "codeResource": "NOI/Exam/Code/P1600_partial",
+          "passMask": 1,
+          "passesSample": false
+        }
+      ]
+    },
+    {
+      "id": "P3233",
+      "title": "[HNOI2014] 世界树",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P3233",
+      "statement": "给定一棵无权树。每次询问授权若干个不同节点作为临时议事处。\n\n每个节点归距离最近的议事处管理；距离相同时归编号更小的议事处。按输入顺序输出每个议事处管理的节点数。",
+      "sampleInput": "10\n2 1\n3 2\n4 3\n5 4\n6 1\n7 3\n8 3\n9 4\n10 1\n5\n2\n6 1\n5\n2 7 3 6 9\n1\n8\n4\n8 7 10 3\n5\n2 9 3 5 8\n",
+      "sampleOutput": "1 9\n3 1 4 1 1\n10\n1 1 3 5\n4 1 3 1 1\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P3233_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "基于虚树的完整解法。",
+          "codeResource": "NOI/Exam/Code/P3233_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "忽略了等距时选择编号更小议事处的规则。",
+          "codeResource": "NOI/Exam/Code/P3233_partial",
+          "passMask": 61,
+          "passesSample": true
+        }
+      ]
+    },
+    {
+      "id": "P4069",
+      "title": "[SDOI2016] 游戏",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P4069",
+      "statement": "给定一棵带权树，每个节点初始保存数字 123456789123456789。\n\n操作 1 s t a b：对路径 s→t 上的节点 r，加入数字 a×dist(r,s)+b。\n操作 2 s t：询问路径 s→t 上所有节点保存的数字中的最小值。",
+      "sampleInput": "3 5\n1 2 10\n2 3 20\n2 1 3\n1 2 3 5 6\n2 2 3\n1 2 3 -5 -6\n2 2 3\n",
+      "sampleOutput": "123456789123456789\n6\n-106\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P4069_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "树链剖分配合李超树的完整解法。",
+          "codeResource": "NOI/Exam/Code/P4069_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "遇到负斜率 a 时直接跳过，部分测试点错误。",
+          "codeResource": "NOI/Exam/Code/P4069_partial",
+          "passMask": 49,
+          "passesSample": false
+        }
+      ]
+    },
+    {
+      "id": "P2495",
+      "title": "[SDOI2011] 消耗战",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P2495",
+      "statement": "给定一棵带权树，根为 1。每次询问给出若干有能源的节点，要求炸毁若干条边，使根无法到达任意有能源节点，并最小化炸毁边的代价和。",
+      "sampleInput": "10\n1 5 13\n1 9 6\n2 1 19\n2 4 8\n2 3 91\n5 6 8\n7 5 4\n7 8 31\n10 7 9\n3\n2 10 6\n4 5 7 8 3\n3 9 4 6\n",
+      "sampleOutput": "12\n32\n22\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P2495_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "虚树加最小割式 DP 的完整解法。",
+          "codeResource": "NOI/Exam/Code/P2495_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "只考虑当前边的代价，遗漏祖先路径上的更小代价。",
+          "codeResource": "NOI/Exam/Code/P2495_partial",
+          "passMask": 120,
+          "passesSample": false
+        }
+      ]
+    },
+    {
+      "id": "P1084",
+      "title": "[NOIP 2012 提高组] 疫情控制",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P1084",
+      "statement": "给定一棵带权树，首都为根节点 1。若干城市驻扎军队，军队可同时移动并建立检查点。\n\n从首都到任意叶子节点的路径中都必须至少有一个非首都检查点。求控制疫情所需的最小时间；无解输出 -1。",
+      "sampleInput": "4\n1 2 1\n1 3 2\n3 4 3\n2\n2 2\n",
+      "sampleOutput": "3\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P1084_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "二分答案、倍增和根节点贪心的完整解法。",
+          "codeResource": "NOI/Exam/Code/P1084_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "没有正确处理跨根节点子树的军队重分配。",
+          "codeResource": "NOI/Exam/Code/P1084_partial",
+          "passMask": 166,
+          "passesSample": false
+        }
+      ]
+    },
+    {
+      "id": "P4211",
+      "title": "[LNOI2014] LCA",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P4211",
+      "statement": "给定一棵以 0 为根的有根树。每次询问 l r z，求：\n\nsum(dep[LCA(i,z)]), l <= i <= r\n\n答案对 201314 取模。",
+      "sampleInput": "5 2\n0\n0\n1\n1\n1 4 3\n1 4 2\n",
+      "sampleOutput": "8\n5\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P4211_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "树链剖分、线段树和离线差分解法。",
+          "codeResource": "NOI/Exam/Code/P4211_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "只处理 l=0 的询问，其他区间直接输出 0。",
+          "codeResource": "NOI/Exam/Code/P4211_partial",
+          "passMask": 128,
+          "passesSample": false
+        }
+      ]
+    },
+    {
+      "id": "P4426",
+      "title": "[HNOI/AHOI2018] 毒瘤",
+      "sourceUrl": "https://www.luogu.com.cn/problem/P4426",
+      "statement": "给定一张 n 个点、m 条边的无向连通图，m-n 不超过 10。\n\n统计不含任何一条边两个端点的点集数量，空集合法，答案对 998244353 取模。",
+      "sampleInput": "3 2\n1 2\n2 3\n",
+      "sampleOutput": "5\n",
+      "testCount": 8,
+      "variants": [
+        {
+          "id": "template",
+          "owner": "我的模板",
+          "kind": "template",
+          "description": "只提供 C++14 输入输出框架。",
+          "codeResource": "NOI/Exam/Code/P4426_template",
+          "passMask": 0,
+          "passesSample": false
+        },
+        {
+          "id": "correct",
+          "owner": "邻座代码",
+          "kind": "correct",
+          "description": "枚举少量非树边并做树形 DP 的完整解法。",
+          "codeResource": "NOI/Exam/Code/P4426_correct",
+          "passMask": 255,
+          "passesSample": true
+        },
+        {
+          "id": "partial",
+          "owner": "邻座草稿",
+          "kind": "partial",
+          "description": "忽略额外的非树边，树图可能通过但一般图会错。",
+          "codeResource": "NOI/Exam/Code/P4426_partial",
+          "passMask": 1,
+          "passesSample": true
+        }
+      ]
+    }
+  ]
+}

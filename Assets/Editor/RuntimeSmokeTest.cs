@@ -37,9 +37,22 @@ namespace NOIChaos.Editor
 
             if (startedGame && !endedGame && manager != null && manager.Session.Phase == GamePhase.Playing && elapsed > 2.2)
             {
-                manager.Session.AddClue(0, "SMOKE A");
-                manager.Session.AddClue(1, "SMOKE B");
-                manager.Session.AddClue(2, "SMOKE C");
+                ExamRunState exam = manager.Session.ExamRun;
+                for (int i = 0; i < exam.Problems.Count; i++)
+                {
+                    ExamProblemDefinition problem = exam.Problems[i];
+                    ExamSolutionVariant correct = null;
+                    for (int variantIndex = 0; variantIndex < problem.variants.Length; variantIndex++)
+                    {
+                        if (problem.variants[variantIndex].kind == "correct")
+                        {
+                            correct = problem.variants[variantIndex];
+                            break;
+                        }
+                    }
+                    int score = OfflineJudge.Score(problem, exam.GetProblemState(i), correct.id);
+                    manager.Session.RecordExamScore(problem.id, correct.id, score);
+                }
                 manager.SubmitInsight();
                 endedGame = manager.Session.Phase == GamePhase.Ended;
             }
@@ -54,7 +67,7 @@ namespace NOIChaos.Editor
             bool passed = startedGame && endedGame && Failures.Count == 0;
             if (passed)
             {
-                Debug.Log("[NOI SmokeTest] PASS - scene boot, player/world/UI creation and win flow completed.");
+                Debug.Log("[NOI SmokeTest] PASS - scene boot, exam selection and 300-point gold flow completed.");
             }
             else
             {

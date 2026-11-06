@@ -12,13 +12,19 @@ namespace NOIChaos
         private string sourceName;
         private string answer;
         private float quality;
+        private string examProblemId;
+        private string examVariantId;
 
         public string SourceName => sourceName;
+        public string ProblemId => examProblemId;
+        public string VariantId => examVariantId;
 
         public bool CanCopy =>
             GameManager.Instance != null &&
             GameManager.Instance.Session != null &&
-            !GameManager.Instance.Session.HasCopiedAnswer(sourceId);
+            (string.IsNullOrEmpty(examVariantId)
+                ? !GameManager.Instance.Session.HasCopiedAnswer(sourceId)
+                : !GameManager.Instance.Session.HasCopiedVariant(examProblemId, examVariantId));
 
         public void Configure(int id, string candidate, string answerText, float answerQuality)
         {
@@ -26,6 +32,13 @@ namespace NOIChaos
             sourceName = candidate;
             answer = answerText;
             quality = answerQuality;
+        }
+
+        public void ConfigureExam(string problemId, string variantId, string candidate)
+        {
+            examProblemId = problemId;
+            examVariantId = variantId;
+            sourceName = candidate;
         }
 
         public void Copy(ThirdPersonPlayer player)
@@ -36,7 +49,16 @@ namespace NOIChaos
                 return;
             }
 
-            game.Session.AddCopiedAnswer(sourceId, sourceName, answer, quality);
+            if (!string.IsNullOrEmpty(examVariantId))
+            {
+                ExamSolutionVariant variant = ProblemCatalog.FindVariant(examProblemId, examVariantId);
+                string variantName = variant != null ? variant.kind : examVariantId;
+                game.Session.RegisterExamCopy(examProblemId, examVariantId, $"{sourceName}：{examProblemId} {variantName}");
+            }
+            else
+            {
+                game.Session.AddCopiedAnswer(sourceId, sourceName, answer, quality);
+            }
             player.ExposeFromSeat(2.8f);
             float risk = player.IsCrouching ? 5f : (player.IsSeated ? 7f : 11f);
             game.AddSuspicion(risk);
@@ -48,7 +70,8 @@ namespace NOIChaos
                 : (player.IsSeated
                     ? "你没有离开座位，只是把头转得有点过分。"
                     : "你站得太直，附近的人可能都看见了。");
-            game.Toast($"抄录 {game.Session.CopiedAnswerCount}/{game.Session.MaxCopiedAnswers}：{answer}\n{warning}", new Color(1f, 0.7f, 0.27f));
+            string copiedName = string.IsNullOrEmpty(examVariantId) ? answer : $"{examProblemId} 的 {examVariantId} 代码";
+            game.Toast($"抄录：{copiedName}\n{warning}", new Color(1f, 0.7f, 0.27f));
         }
     }
 }

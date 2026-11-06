@@ -1,5 +1,7 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
+using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -14,6 +16,7 @@ namespace NOIChaos
         public ThirdPersonPlayer Player { get; private set; }
         public ThirdPersonCamera PlayerCamera { get; private set; }
         public GameUI UI { get; private set; }
+        public ExamTerminalUI ExamTerminal { get; private set; }
         public ProceduralAudio AudioDirector { get; private set; }
         public ExamHallWorld World { get; private set; }
         public bool IsPlaying => Session != null && Session.Phase == GamePhase.Playing;
@@ -41,6 +44,7 @@ namespace NOIChaos
             Session = gameObject.AddComponent<GameSession>();
             AudioDirector = gameObject.AddComponent<ProceduralAudio>();
             UI = gameObject.AddComponent<GameUI>();
+            ExamTerminal = gameObject.AddComponent<ExamTerminalUI>();
         }
 
         private IEnumerator Start()
@@ -51,6 +55,7 @@ namespace NOIChaos
             PlayerCamera = ThirdPersonCamera.Create(this, Player);
             World = ExamHallBuilder.Build(this);
             UI.Initialize(this);
+            ExamTerminal.Initialize(this);
             Player.SetControl(false);
             UI.ShowTitle();
             AudioDirector.StartAmbient();
@@ -92,7 +97,13 @@ namespace NOIChaos
             {
                 if (Session.RemainingSeconds <= 0f)
                 {
-                    EndRun(false, "结局：交卷铃响了", "你还在研究第二题，交卷铃已经替你完成了时间复杂度证明。\n\n下次记得：歪招也需要计划。");
+                    ExamTerminal.ForceClose();
+                    FinalizeExam("交卷铃响了，系统自动提交当前最高成绩。");
+                    return;
+                }
+
+                if (ExamTerminal.IsOpen)
+                {
                     return;
                 }
 
@@ -132,6 +143,7 @@ namespace NOIChaos
             AudioDirector.PlayConfirm();
             yield return new WaitForSeconds(0.35f);
             Session.ResetRun();
+            ConfigureExamSources();
             UI.ShowHUD();
             Player.SetControl(true);
             PlayerCamera.SetControl(true);
@@ -212,39 +224,76 @@ namespace NOIChaos
                 return;
             }
 
-            if (Session.ClueCount >= Session.MaxClues)
+            FinalizeExam("你按下了最终交卷按钮。");
+        }
+
+        public void OpenExamTerminal()
+        {
+            if (!IsPlaying)
             {
-                EndRun(true, "结局：金牌，居然有理有据", "离线分块、倍增合并，再让每个起点共享一次观察。\n\n评测终端亮起金色的 Accepted。你靠一个足够离谱、但完全正确的想法拿到了金牌。\n\n年度最不按套路选手，诞生。");
                 return;
             }
 
-            if (Session.CopiedAnswerCount >= 3)
+            Session.MarkWorkstationChecked();
+            ExamTerminal.Open();
+        }
+
+        private void ConfigureExamSources()
+        {
+            AnswerSource[] sources = FindObjectsOfType<AnswerSource>()
+                .OrderBy(source => source.transform.position.x)
+                .ThenBy(source => source.transform.position.z)
+                .ToArray();
+            if (sources.Length < 6 || Session.ExamRun == null)
             {
-                if (Session.Suspicion >= 72f)
-                {
-                    EndRun(false, "结局：抄得太多，演得太差", "你拼出了一份看似完整的答案，但监考老师早就记下了你每一次回头。\n\n成绩单上只有一句话：REVIEW REQUIRED.");
-                }
-                else if (Session.AverageCopyQuality >= 0.62f)
-                {
-                    EndRun(true, "结局：金牌，复印件版", "你把四张屏幕上的思路剪成了一份能跑的代码。\n\n评测机没有问答案从哪来，监考老师暂时也没有。你拿到了金牌，以及一整晚的心跳加速。");
-                }
-                else
-                {
-                    EndRun(false, "结局：银牌，拼贴事故", "三份答案互相矛盾，合并后甚至多了一个负环。\n\n你成功写出了一篇很有创意的错误证明。");
-                }
+                Debug.LogError("[NOI Exam] Six neighbor code sources are required.");
                 return;
             }
 
-            if (Session.ClueCount + Session.CopiedAnswerCount > 0)
+            for (int problemIndex = 0; problemIndex < 3; problemIndex++)
             {
-                Session.RegisterWrongSubmission();
-                Session.AddSuspicion(12f);
-                AudioDirector.PlayError();
-                Toast("提交失败：灵感、抄来的代码和玄学还没有真正拼起来。", new Color(1f, 0.42f, 0.3f));
+                ExamProblemDefinition problem = Session.ExamRun.Problems[problemIndex];
+                ExamSolutionVariant correct = problem.variants.FirstOrDefault(variant => variant.kind == "correct");
+                ExamSolutionVariant partial = problem.variants.FirstOrDefault(variant => variant.kind == "partial");
+                ConfigureSource(sources[problemIndex * 2], problem.id, correct);
+                ConfigureSource(sources[problemIndex * 2 + 1], problem.id, partial);
+            }
+        }
+
+        private static void ConfigureSource(AnswerSource source, string problemId, ExamSolutionVariant variant)
+        {
+            if (source == null || variant == null)
+            {
                 return;
             }
 
-            EndRun(false, "结局：空白卷也很自由", "你走到评测终端，什么都没写，然后按下了提交。\n\n系统沉默了三秒，给出了本次考试最诚实的分数。");
+            string candidate = source.gameObject.name.Replace("Station ", string.Empty);
+            source.ConfigureExam(problemId, variant.id, candidate);
+        }
+
+        public void FinalizeExam(string reason)
+        {
+            if (!IsPlaying || Session.ExamRun == null)
+            {
+                return;
+            }
+
+            ExamRunState run = Session.ExamRun;
+            string medal = run.GetMedalName();
+            StringBuilder body = new StringBuilder();
+            body.AppendLine(reason);
+            body.AppendLine();
+            for (int i = 0; i < run.Problems.Count; i++)
+            {
+                ProblemRunState state = run.GetProblemState(i);
+                body.AppendLine($"T{i + 1}  {run.Problems[i].id}  {state.BestScore}/100 {(state.Accepted ? "Accepted" : string.Empty)}");
+            }
+            body.AppendLine();
+            body.AppendLine($"总分 {run.TotalScore}/300");
+            body.AppendLine($"本局奖牌线：金 {run.GoldLine} / 银 {run.SilverLine} / 铜 {run.BronzeLine}");
+            body.AppendLine($"结果：{medal}");
+            bool victory = medal != "无牌";
+            EndRun(victory, $"结局：{medal}", body.ToString());
         }
 
         public void LeaveExam()
@@ -254,7 +303,7 @@ namespace NOIChaos
                 return;
             }
 
-            EndRun(false, "结局：自由地弃赛", "你推开考场门，决定把金牌留给更需要它的人。\n\n走廊里没有监考老师，也没有第二题。");
+            EndRun(false, "结局：自由地弃赛", "你推开考场门，决定把奖牌留给更需要它的人。\n\n走廊里没有监考老师，也没有那些随机黑题。");
         }
 
         public void TryMedal()
@@ -326,10 +375,6 @@ namespace NOIChaos
             }
 
             World.AlertInvigilators(position, radius, dramatic);
-            if (dramatic)
-            {
-                World.AlertSecurity(position);
-            }
         }
 
         public void AlertSecurity(Vector3 position, string reason)
@@ -381,6 +426,10 @@ namespace NOIChaos
             }
 
             Session.End(victory, title, body);
+            if (ExamTerminal != null)
+            {
+                ExamTerminal.ForceClose();
+            }
             Player.SetControl(false);
             PlayerCamera.SetControl(false);
             UI.ToggleNotebook(false);
@@ -429,7 +478,7 @@ namespace NOIChaos
         private IEnumerator RunSmokeTest()
         {
             yield return new WaitForSecondsRealtime(1.2f);
-            if (World == null || Player == null || UI == null || World.Invigilators.Count < 2 || FindObjectsOfType<AnswerSource>().Length < 3)
+            if (World == null || Player == null || UI == null || World.Invigilators.Count < 2 || FindObjectsOfType<AnswerSource>().Length < 6)
             {
                 smokeTestFinished = true;
                 Debug.LogError("[NOI SmokeTest] FAIL - world, player, UI, invigilators or answer sources missing.");
@@ -446,6 +495,86 @@ namespace NOIChaos
                 Application.Quit(1);
                 yield break;
             }
+
+            if (Session.ExamRun == null || Session.ExamRun.Problems.Count != 3
+                || Session.ExamRun.Problems[0].id != "P1001"
+                || Session.ExamRun.Problems.Select(problem => problem.id).Distinct().Count() != 3
+                || Session.ExamRun.ProblemStates.Any(state => state.TestIndices.Length != 5))
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - exam problem selection or test selection is invalid.");
+                Application.Quit(1);
+                yield break;
+            }
+
+            try
+            {
+                ValidateExamModel();
+            }
+            catch (System.Exception exception)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - exam model validation: " + exception.Message);
+                Application.Quit(1);
+                yield break;
+            }
+            if (!LocalCppJudge.IsCompilerAvailable)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - local C++14 compiler was not detected.");
+                Application.Quit(1);
+                yield break;
+            }
+            ExamProblemDefinition abProblem = Session.ExamRun.Problems[0];
+            ExamSolutionVariant abCorrect = abProblem.variants.First(variant => variant.kind == "correct");
+            System.Threading.Tasks.Task<ExamJudgeResult> compileTask = LocalCppJudge.JudgeAsync(
+                abProblem,
+                Session.ExamRun.GetProblemState(0),
+                ProblemCatalog.LoadCode(abCorrect),
+                false);
+            while (!compileTask.IsCompleted)
+            {
+                yield return null;
+            }
+            if (compileTask.IsFaulted || !compileTask.Result.CompileSuccess || compileTask.Result.Score != 100)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - local C++14 compile/judge flow failed.");
+                Application.Quit(1);
+                yield break;
+            }
+            const string bitsHeaderSmokeCode =
+                "#include <bits/stdc++.h>\n" +
+                "int main(){long long a,b;std::cin>>a>>b;std::cout<<a+b<<'\\n';}\n";
+            System.Threading.Tasks.Task<ExamJudgeResult> bitsCompileTask = LocalCppJudge.JudgeAsync(
+                abProblem,
+                Session.ExamRun.GetProblemState(0),
+                bitsHeaderSmokeCode,
+                true);
+            while (!bitsCompileTask.IsCompleted)
+            {
+                yield return null;
+            }
+            if (bitsCompileTask.IsFaulted
+                || !bitsCompileTask.Result.CompileSuccess
+                || bitsCompileTask.Result.Message != "Sample Passed")
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - #include <bits/stdc++.h> runtime compilation failed.");
+                Application.Quit(1);
+                yield break;
+            }
+            OpenExamTerminal();
+            yield return null;
+            if (!ExamTerminal.IsOpen || !ExamTerminal.IsCodeEditorReady)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - exam terminal or code editor did not open.");
+                Application.Quit(1);
+                yield break;
+            }
+            ExamTerminal.Close();
+            yield return null;
 
             GameObject playerStation = GameObject.Find("Your station");
             Transform playerChair = playerStation != null ? playerStation.transform.Find("Chair") : null;
@@ -464,6 +593,13 @@ namespace NOIChaos
             if (sources.Length > 0)
             {
                 sources[0].Copy(Player);
+                if (!Session.HasCopiedVariant(sources[0].ProblemId, sources[0].VariantId))
+                {
+                    smokeTestFinished = true;
+                    Debug.LogError("[NOI SmokeTest] FAIL - neighbor code was not copied.");
+                    Application.Quit(1);
+                    yield break;
+                }
             }
             Player.StandUp();
             yield return null;
@@ -512,22 +648,86 @@ namespace NOIChaos
                 yield break;
             }
 
-            Session.AddCopiedAnswer(201, "SMOKE 21", "copy route A", 0.8f);
-            Session.AddCopiedAnswer(202, "SMOKE 64", "copy route B", 0.8f);
-            Session.AddCopiedAnswer(203, "SMOKE 31", "copy route C", 0.8f);
+            for (int i = 0; i < Session.ExamRun.Problems.Count; i++)
+            {
+                ExamProblemDefinition problem = Session.ExamRun.Problems[i];
+                ExamSolutionVariant correct = problem.variants.First(variant => variant.kind == "correct");
+                int score = OfflineJudge.Score(problem, Session.ExamRun.GetProblemState(i), correct.id);
+                if (score != 100)
+                {
+                    smokeTestFinished = true;
+                    Debug.LogError($"[NOI SmokeTest] FAIL - correct solution for {problem.id} scored {score}.");
+                    Application.Quit(1);
+                    yield break;
+                }
+                Session.RecordExamScore(problem.id, correct.id, score);
+            }
             SubmitInsight();
             yield return null;
 
             smokeTestFinished = true;
             if (Session.Phase == GamePhase.Ended && Session.Victory)
             {
-                Debug.Log("[NOI SmokeTest] PASS - boot, seat concealment, sit/stand, copy, punch, paper ball and copied-answer victory succeeded.");
+                Debug.Log("[NOI SmokeTest] PASS - exam selection, six code sources, terminal, copied code, punches, paper ball and 300-point gold flow succeeded.");
                 Application.Quit(0);
             }
             else
             {
                 Debug.LogError("[NOI SmokeTest] FAIL - victory flow did not complete.");
                 Application.Quit(1);
+            }
+        }
+
+        private void ValidateExamModel()
+        {
+            if (ProblemCatalog.Problems.Count != 8)
+            {
+                throw new System.InvalidOperationException("Expected eight exam problems.");
+            }
+            for (int i = 0; i < ProblemCatalog.Problems.Count; i++)
+            {
+                ExamProblemDefinition definition = ProblemCatalog.Problems[i];
+                if (definition.testCount != 8 || definition.variants == null || definition.variants.Length != 3)
+                {
+                    throw new System.InvalidOperationException("Invalid problem pack: " + definition.id);
+                }
+                ExamSolutionVariant correct = definition.variants.First(variant => variant.kind == "correct");
+                if (!correct.passesSample || ProblemCatalog.LoadCode(correct).Length < 40)
+                {
+                    throw new System.InvalidOperationException("Missing or invalid correct solution: " + definition.id);
+                }
+            }
+
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                ExamRunState run = ExamRunState.Create(ProblemCatalog.Problems, seed);
+                if (run.Problems.Count != 3
+                    || run.Problems[0].id != "P1001"
+                    || run.Problems.Select(problem => problem.id).Distinct().Count() != 3
+                    || run.ProblemStates.Any(state => state.TestIndices.Length != 5)
+                    || run.GoldLine < 200 || run.GoldLine > 260
+                    || run.SilverLine < 130 || run.SilverLine > 180
+                    || run.BronzeLine < 70 || run.BronzeLine > 120)
+                {
+                    throw new System.InvalidOperationException("Exam run invariants failed at seed " + seed);
+                }
+                if (run.GetMedalName(run.GoldLine) != "金牌"
+                    || run.GetMedalName(run.SilverLine) != "银牌"
+                    || run.GetMedalName(run.BronzeLine) != "铜牌"
+                    || run.GetMedalName(run.BronzeLine - 1) != "无牌")
+                {
+                    throw new System.InvalidOperationException("Medal threshold boundary failed at seed " + seed);
+                }
+
+                for (int i = 0; i < run.Problems.Count; i++)
+                {
+                    ExamSolutionVariant partial = run.Problems[i].variants.First(variant => variant.kind == "partial");
+                    int partialScore = OfflineJudge.Score(run.Problems[i], run.GetProblemState(i), partial.id);
+                    if (partialScore < 20 || partialScore > 80 || partialScore % 20 != 0)
+                    {
+                        throw new System.InvalidOperationException($"Partial score out of range for {run.Problems[i].id}: {partialScore}");
+                    }
+                }
             }
         }
 
@@ -545,11 +745,13 @@ namespace NOIChaos
             }
 
             bool hasSecurity = false;
+            InvigilatorAgent securityGuard = null;
             for (int i = 0; i < World.Invigilators.Count; i++)
             {
                 if (World.Invigilators[i].IsSecurityGuard)
                 {
                     hasSecurity = true;
+                    securityGuard = World.Invigilators[i];
                     break;
                 }
             }
@@ -557,6 +759,16 @@ namespace NOIChaos
             {
                 smokeTestFinished = true;
                 Debug.LogError("[NOI SmokeTest] FAIL - security guard was not created.");
+                Application.Quit(1);
+                yield break;
+            }
+
+            ReportNoise(Player.transform.position, 20f, true);
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (securityGuard.IsInvestigating)
+            {
+                smokeTestFinished = true;
+                Debug.LogError("[NOI SmokeTest] FAIL - non-punch noise alerted the security guard.");
                 Application.Quit(1);
                 yield break;
             }
@@ -601,6 +813,10 @@ namespace NOIChaos
             }
             yield return new WaitForSecondsRealtime(1.4f);
             yield return CapturePng("/tmp/noi-game.png");
+            OpenExamTerminal();
+            yield return new WaitForSecondsRealtime(1.2f);
+            yield return CapturePng("/tmp/noi-exam.png");
+            ExamTerminal.Close();
             yield return new WaitForSecondsRealtime(1.2f);
 
             Debug.Log($"[NOI ScreenshotTest] Complete at {Screen.width}x{Screen.height}; graphics={SystemInfo.graphicsDeviceName}.");
@@ -617,12 +833,18 @@ namespace NOIChaos
             RenderTexture previousTarget = captureCamera.targetTexture;
             RenderMode previousMode = uiCanvas.renderMode;
             Camera previousUiCamera = uiCanvas.worldCamera;
+            Canvas examCanvas = ExamTerminal.Canvas;
+            RenderMode previousExamMode = examCanvas.renderMode;
+            Camera previousExamCamera = examCanvas.worldCamera;
 
             RenderTexture renderTexture = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
             captureCamera.targetTexture = renderTexture;
             uiCanvas.renderMode = RenderMode.ScreenSpaceCamera;
             uiCanvas.worldCamera = captureCamera;
             uiCanvas.planeDistance = 0.35f;
+            examCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+            examCanvas.worldCamera = captureCamera;
+            examCanvas.planeDistance = 0.3f;
             captureCamera.Render();
 
             RenderTexture previousActive = RenderTexture.active;
@@ -636,6 +858,8 @@ namespace NOIChaos
             captureCamera.targetTexture = previousTarget;
             uiCanvas.renderMode = previousMode;
             uiCanvas.worldCamera = previousUiCamera;
+            examCanvas.renderMode = previousExamMode;
+            examCanvas.worldCamera = previousExamCamera;
             RenderTexture.ReleaseTemporary(renderTexture);
             Destroy(texture);
         }

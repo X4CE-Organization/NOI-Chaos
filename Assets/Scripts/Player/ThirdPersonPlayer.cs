@@ -332,7 +332,7 @@ namespace NOIChaos
 
             if (currentAnswerSource != null && currentAnswerSource.CanCopy)
             {
-                prompt += (string.IsNullOrEmpty(prompt) ? string.Empty : "     ") + "[F]  偷看并抄下答案";
+                prompt += (string.IsNullOrEmpty(prompt) ? string.Empty : "     ") + "[F]  偷看并抄下题目代码";
                 if (Input.GetKeyDown(KeyCode.F))
                 {
                     currentAnswerSource.Copy(this);
@@ -345,6 +345,7 @@ namespace NOIChaos
 
         private void HandleSeatedActions()
         {
+            InteractionPoint nearbyTerminal = FindNearbyTerminal();
             AnswerSource bestSource = null;
             float bestDistance = 6.5f;
             AnswerSource[] sources = FindObjectsOfType<AnswerSource>();
@@ -365,13 +366,20 @@ namespace NOIChaos
             }
 
             string sourcePrompt = bestSource != null
-                ? $"     [F]  侧头偷看 {bestSource.SourceName} 的屏幕"
+                ? $"     [F]  侧头偷看 {bestSource.SourceName} 的屏幕代码"
                 : string.Empty;
-            GameManager.Instance.UI.SetPrompt($"[E / 左键]  站起{sourcePrompt}     [G]  扔纸团");
+            string terminalPrompt = nearbyTerminal != null ? "     [左键]  打开自己的做题电脑" : string.Empty;
+            GameManager.Instance.UI.SetPrompt($"[E]  站起{terminalPrompt}{sourcePrompt}     [G]  扔纸团");
 
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+            if (Input.GetKeyDown(KeyCode.E))
             {
                 StandUp();
+                return;
+            }
+
+            if (nearbyTerminal != null && Input.GetMouseButtonDown(0))
+            {
+                nearbyTerminal.Interact();
                 return;
             }
 
@@ -388,6 +396,30 @@ namespace NOIChaos
                 GameManager.Instance.Session.AddSuspicion(4f);
                 GameManager.Instance.Toast("你坐着把纸团扔了出去。动作幅度过于明显。", new Color(1f, 0.58f, 0.3f));
             }
+        }
+
+        private InteractionPoint FindNearbyTerminal()
+        {
+            int count = Physics.OverlapSphereNonAlloc(
+                transform.position + Vector3.up,
+                2.35f,
+                interactionHits,
+                Physics.DefaultRaycastLayers,
+                QueryTriggerInteraction.Collide);
+            for (int i = 0; i < count; i++)
+            {
+                Collider hit = interactionHits[i];
+                if (hit == null)
+                {
+                    continue;
+                }
+                InteractionPoint point = hit.GetComponentInParent<InteractionPoint>();
+                if (point != null && point.IsAvailable && point.Prompt.Contains("做题终端"))
+                {
+                    return point;
+                }
+            }
+            return null;
         }
 
         private void AnimateSeated()

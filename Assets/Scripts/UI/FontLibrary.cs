@@ -6,6 +6,7 @@ namespace NOIChaos
     public static class FontLibrary
     {
         private static Font cachedFont;
+        private static Font cachedMonospaceFont;
 
         public static Font GetChineseFont()
         {
@@ -46,6 +47,31 @@ namespace NOIChaos
                 cachedFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             }
             return cachedFont;
+        }
+
+        public static Font GetMonospaceFont()
+        {
+            if (cachedMonospaceFont != null)
+            {
+                return cachedMonospaceFont;
+            }
+
+            string[] preferredNames = { "Menlo", "SF Mono", "Monaco", "Consolas", "Courier New" };
+            string[] installed = Font.GetOSInstalledFontNames();
+            for (int i = 0; i < preferredNames.Length; i++)
+            {
+                for (int j = 0; j < installed.Length; j++)
+                {
+                    if (string.Equals(installed[j], preferredNames[i], StringComparison.OrdinalIgnoreCase))
+                    {
+                        cachedMonospaceFont = Font.CreateDynamicFontFromOSFont(installed[j], 18);
+                        return cachedMonospaceFont;
+                    }
+                }
+            }
+
+            cachedMonospaceFont = GetChineseFont();
+            return cachedMonospaceFont;
         }
     }
 }

@@ -39,6 +39,7 @@ namespace NOIChaos
 
         public bool SeesPlayer => seesPlayer;
         public bool IsSecurityGuard => securityGuard;
+        public bool IsInvestigating => state == AgentState.Investigate || state == AgentState.Observe;
 
         public void Configure(GameManager manager, Vector3[] patrolRoute, Color uniformColor, string displayName)
         {

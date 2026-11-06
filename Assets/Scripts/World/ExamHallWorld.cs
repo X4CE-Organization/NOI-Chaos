@@ -28,7 +28,10 @@ namespace NOIChaos
         {
             for (int i = 0; i < invigilators.Count; i++)
             {
-                invigilators[i].AlertTo(position, radius, dramatic);
+                if (!invigilators[i].IsSecurityGuard)
+                {
+                    invigilators[i].AlertTo(position, radius, dramatic);
+                }
             }
         }
 
@@ -47,7 +50,10 @@ namespace NOIChaos
         {
             for (int i = 0; i < invigilators.Count; i++)
             {
-                invigilators[i].Distract(position, duration);
+                if (!invigilators[i].IsSecurityGuard)
+                {
+                    invigilators[i].Distract(position, duration);
+                }
             }
         }
 
