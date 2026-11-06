@@ -1,0 +1,641 @@
+using System.Collections;
+using System.Text;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace NOIChaos
+{
+    public sealed class GameUI : MonoBehaviour
+    {
+        private GameManager game;
+        private Font font;
+        private Canvas canvas;
+        private GameObject titleRoot;
+        private GameObject hudRoot;
+        private GameObject notebookRoot;
+        private GameObject pauseRoot;
+        private GameObject endRoot;
+        private GameObject toastRoot;
+        private GameObject flashRoot;
+        private Text objectiveText;
+        private Text clueCounterText;
+        private Text clueListText;
+        private Text suspicionText;
+        private Text promptText;
+        private Text notebookText;
+        private Text timerText;
+        private Text toastText;
+        private Text endTitleText;
+        private Text endBodyText;
+        private Image suspicionFill;
+        private CanvasGroup toastCanvasGroup;
+        private CanvasGroup flashCanvasGroup;
+        private Coroutine toastRoutine;
+        private bool initialized;
+
+        public bool IsNotebookOpen => notebookRoot != null && notebookRoot.activeSelf;
+
+        public void Initialize(GameManager manager)
+        {
+            if (initialized)
+            {
+                return;
+            }
+
+            initialized = true;
+            game = manager;
+            font = FontLibrary.GetChineseFont();
+            BuildEventSystem();
+            BuildCanvas();
+            BuildTitle();
+            BuildHUD();
+            BuildNotebook();
+            BuildPause();
+            BuildEnd();
+            BuildToast();
+            BuildFlash();
+            game.Session.Changed += RefreshState;
+            RefreshState();
+        }
+
+        public void ShowTitle()
+        {
+            titleRoot.SetActive(true);
+            hudRoot.SetActive(false);
+            notebookRoot.SetActive(false);
+            pauseRoot.SetActive(false);
+            endRoot.SetActive(false);
+        }
+
+        public void ShowHUD()
+        {
+            titleRoot.SetActive(false);
+            hudRoot.SetActive(true);
+            pauseRoot.SetActive(false);
+            endRoot.SetActive(false);
+            notebookRoot.SetActive(false);
+            RefreshState();
+        }
+
+        public void ShowPause(bool show)
+        {
+            pauseRoot.SetActive(show);
+            if (show)
+            {
+                notebookRoot.SetActive(false);
+            }
+        }
+
+        public void ToggleNotebook()
+        {
+            ToggleNotebook(!IsNotebookOpen);
+        }
+
+        public void ToggleNotebook(bool show)
+        {
+            if (game.Session.Phase == GamePhase.Ended || game.Session.Phase == GamePhase.Title)
+            {
+                return;
+            }
+
+            notebookRoot.SetActive(show);
+            if (show)
+            {
+                RefreshNotebook();
+            }
+        }
+
+        public void ShowEnd()
+        {
+            notebookRoot.SetActive(false);
+            pauseRoot.SetActive(false);
+            hudRoot.SetActive(true);
+            endRoot.SetActive(true);
+            endTitleText.text = game.Session.EndingTitle;
+            endBodyText.text = game.Session.EndingBody;
+            endTitleText.color = game.Session.Victory ? new Color(1f, 0.72f, 0.18f) : new Color(1f, 0.32f, 0.25f);
+        }
+
+        public void SetPrompt(string prompt)
+        {
+            if (promptText == null)
+            {
+                return;
+            }
+            promptText.text = prompt;
+            promptText.CrossFadeAlpha(string.IsNullOrEmpty(prompt) ? 0f : 1f, 0.12f, true);
+        }
+
+        public void Toast(string message)
+        {
+            Toast(message, new Color(0.85f, 0.93f, 0.96f));
+        }
+
+        public void Toast(string message, Color color)
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            if (toastRoutine != null)
+            {
+                StopCoroutine(toastRoutine);
+            }
+
+            toastText.text = message;
+            toastText.color = color;
+            toastCanvasGroup.alpha = 1f;
+            toastRoot.SetActive(true);
+            toastRoutine = StartCoroutine(ToastRoutine());
+        }
+
+        public void Flash()
+        {
+            if (flashRoot == null)
+            {
+                return;
+            }
+            StopAllCoroutines();
+            StartCoroutine(FlashRoutine());
+        }
+
+        private void RefreshState()
+        {
+            if (!initialized || game == null || game.Session == null)
+            {
+                return;
+            }
+
+            GameSession session = game.Session;
+            objectiveText.text = session.Objective;
+            clueCounterText.text = $"灵感  {session.ClueCount:00} / {session.MaxClues:00}";
+
+            float suspicion = session.Suspicion / 100f;
+            suspicionFill.rectTransform.anchorMax = new Vector2(suspicion, 1f);
+            suspicionFill.color = Color.Lerp(
+                new Color(0.16f, 0.78f, 0.75f),
+                new Color(1f, 0.22f, 0.16f),
+                Mathf.Clamp01(suspicion * 1.25f));
+            suspicionText.text = $"怀疑度  {Mathf.RoundToInt(session.Suspicion):00}%";
+            suspicionText.color = suspicion > 0.72f ? new Color(1f, 0.45f, 0.34f) : new Color(0.77f, 0.84f, 0.87f);
+
+            if (clueListText != null)
+            {
+                if (session.ClueNames.Count == 0)
+                {
+                    clueListText.text = "尚未收集\n\n观察、询问、翻找。";
+                }
+                else
+                {
+                    StringBuilder clueBuilder = new StringBuilder();
+                    for (int i = 0; i < session.ClueNames.Count; i++)
+                    {
+                        clueBuilder.Append("◆ ");
+                        clueBuilder.AppendLine(session.ClueNames[i]);
+                    }
+                    clueListText.text = clueBuilder.ToString();
+                }
+            }
+
+            RefreshNotebook();
+        }
+
+        private void Update()
+        {
+            if (timerText == null || game == null || game.Session == null)
+            {
+                return;
+            }
+
+            float remaining = game.Session.RemainingSeconds;
+            int minutes = Mathf.FloorToInt(remaining / 60f);
+            int seconds = Mathf.FloorToInt(remaining % 60f);
+            timerText.text = $"T-MINUS  {minutes:00}:{seconds:00}";
+            timerText.color = remaining < 60f ? new Color(1f, 0.31f, 0.25f) : new Color(0.9f, 0.94f, 0.94f);
+        }
+
+        private void RefreshNotebook()
+        {
+            if (notebookText == null || game == null || game.Session == null)
+            {
+                return;
+            }
+
+            StringBuilder builder = new StringBuilder();
+            builder.AppendLine("X4CE  //  选手笔记本");
+            builder.AppendLine();
+            builder.AppendLine("<color=#61E5DB>当前目标</color>");
+            builder.AppendLine(game.Session.Objective);
+            builder.AppendLine();
+            builder.AppendLine("<color=#61E5DB>灵感碎片</color>");
+            if (game.Session.ClueNames.Count == 0)
+            {
+                builder.AppendLine("· 尚未发现。先观察白板、废纸篓和邻座。");
+            }
+            else
+            {
+                for (int i = 0; i < game.Session.ClueNames.Count; i++)
+                {
+                    builder.AppendLine($"· {game.Session.ClueNames[i]}");
+                }
+            }
+
+            builder.AppendLine();
+            builder.AppendLine("<color=#61E5DB>行动记录</color>");
+            builder.AppendLine(game.Session.WorkstationChecked ? "· T1：Accepted" : "· T1：待确认");
+            builder.AppendLine(game.Session.SideRoomFound ? "· 发现被遗忘的选手手册" : "· 海报背后似乎有空隙");
+            builder.AppendLine();
+            builder.AppendLine("<color=#F2AA3C>操作</color>  WASD 移动  ·  鼠标观察  ·  Shift 奔跑");
+            builder.AppendLine("C 蹲伏  ·  Space 跳跃  ·  E 交互  ·  Tab 关闭");
+            notebookText.text = builder.ToString();
+        }
+
+        private void BuildEventSystem()
+        {
+            if (FindObjectOfType<EventSystem>() != null)
+            {
+                return;
+            }
+
+            GameObject eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
+        }
+
+        private void BuildCanvas()
+        {
+            GameObject canvasObject = new GameObject("NOI Chaos UI");
+            canvasObject.transform.SetParent(transform, false);
+            canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
+            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+            canvasObject.AddComponent<GraphicRaycaster>();
+        }
+
+        private void BuildTitle()
+        {
+            titleRoot = CreateFullPanel("Title screen", canvas.transform, new Color(0.012f, 0.023f, 0.04f, 0.96f));
+
+            CreatePanel("Gold rail", titleRoot.transform, new Color(1f, 0.64f, 0.14f, 1f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(150f, -140f));
+            CreatePanel("Teal rail", titleRoot.transform, new Color(0.12f, 0.88f, 0.82f, 0.92f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-120f, 0f), new Vector2(3f, -220f));
+
+            Text brand = CreateText("Brand", titleRoot.transform, "X4CE  //  OPEN SOURCE GAME EXPERIMENT", 22, new Color(0.47f, 0.92f, 0.88f), TextAnchor.MiddleLeft);
+            Place(brand.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180f, -88f), new Vector2(850f, 42f));
+
+            Text year = CreateText("Year", titleRoot.transform, "NOI  //  2026", 22, new Color(1f, 0.69f, 0.21f), TextAnchor.MiddleRight);
+            Place(year.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-150f, -88f), new Vector2(420f, 42f));
+
+            Text kicker = CreateText("Kicker", titleRoot.transform, "考场潜行喜剧  /  THIRD-PERSON HEIST", 26, new Color(0.66f, 0.75f, 0.79f), TextAnchor.MiddleLeft);
+            Place(kicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(180f, 205f), new Vector2(1000f, 42f));
+
+            Text title = CreateText("Title", titleRoot.transform, "NOI 乱斗", 112, new Color(1f, 0.69f, 0.19f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(174f, 95f), new Vector2(1050f, 190f));
+            Outline titleOutline = title.gameObject.AddComponent<Outline>();
+            titleOutline.effectColor = new Color(0.16f, 0.07f, 0.02f, 0.9f);
+            titleOutline.effectDistance = new Vector2(4f, -5f);
+
+            Text subtitle = CreateText(
+                "Subtitle",
+                titleRoot.transform,
+                "第一题已经 Accepted。\n第二题不会做，但金牌还得拿。",
+                35,
+                new Color(0.88f, 0.91f, 0.91f),
+                TextAnchor.UpperLeft);
+            Place(subtitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -70f), new Vector2(900f, 130f));
+
+            Button startButton = CreateButton("Start button", titleRoot.transform, "进入考场  /  ENTER", new Vector2(330f, 72f), new Color(0.95f, 0.58f, 0.12f), new Color(0.04f, 0.055f, 0.07f));
+            Place(startButton.GetComponent<RectTransform>(), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -220f), new Vector2(330f, 72f));
+            startButton.onClick.AddListener(game.StartGame);
+
+            Text disclaimer = CreateText(
+                "Disclaimer",
+                titleRoot.transform,
+                "虚构考场 · 荒诞潜行 · 不鼓励现实作弊\n程序化美术与音效 · 无外部素材依赖",
+                20,
+                new Color(0.5f, 0.59f, 0.63f),
+                TextAnchor.UpperLeft);
+            Place(disclaimer.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(184f, -290f), new Vector2(620f, 80f));
+
+            CreateFeatureCard("Card 01", titleRoot.transform, "01", "观察", "记下监考路线\n利用视野盲区", new Vector2(0.64f, 0.5f));
+            CreateFeatureCard("Card 02", titleRoot.transform, "02", "交互", "广播、咖啡、灯光\n每个按钮都有后果", new Vector2(0.76f, 0.5f));
+            CreateFeatureCard("Card 03", titleRoot.transform, "03", "推理", "收集 3 条灵感\n把歪招变成正解", new Vector2(0.88f, 0.5f));
+
+            Text footer = CreateText(
+                "Footer",
+                titleRoot.transform,
+                "Copyright © 2026 X4CE   ·   MIT License   ·   Unity 2022.3",
+                18,
+                new Color(0.42f, 0.49f, 0.52f),
+                TextAnchor.MiddleLeft);
+            Place(footer.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(180f, 62f), new Vector2(1000f, 40f));
+        }
+
+        private void CreateFeatureCard(string objectName, Transform parent, string number, string heading, string body, Vector2 anchor)
+        {
+            GameObject card = CreatePanel(objectName, parent, new Color(0.04f, 0.075f, 0.105f, 0.9f), anchor, anchor, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220f, 250f));
+            Place(card.GetComponent<RectTransform>(), anchor, anchor, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220f, 250f));
+            Text numberText = CreateText("Number", card.transform, number, 23, new Color(1f, 0.67f, 0.17f), TextAnchor.UpperLeft, FontStyle.Bold);
+            Stretch(numberText.rectTransform, 22f, 22f, 20f, 16f);
+            Text headingText = CreateText("Heading", card.transform, heading, 32, Color.white, TextAnchor.UpperLeft, FontStyle.Bold);
+            Place(headingText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -72f), new Vector2(176f, 44f));
+            Text bodyText = CreateText("Body", card.transform, body, 20, new Color(0.62f, 0.7f, 0.73f), TextAnchor.UpperLeft);
+            Place(bodyText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -126f), new Vector2(176f, 90f));
+        }
+
+        private void BuildHUD()
+        {
+            hudRoot = CreateFullPanel("HUD", canvas.transform, Color.clear);
+            hudRoot.GetComponent<Image>().raycastTarget = false;
+
+            GameObject objectivePanel = CreatePanel("Objective panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.88f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(46f, -42f), new Vector2(680f, 152f));
+            CreatePanel("Objective accent", objectivePanel.transform, new Color(0.16f, 0.87f, 0.8f, 1f), Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(5f, 0f));
+            Text label = CreateText("Label", objectivePanel.transform, "CURRENT OBJECTIVE  //  当前目标", 17, new Color(0.36f, 0.79f, 0.78f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(label.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -22f), new Vector2(610f, 28f));
+            objectiveText = CreateText("Objective", objectivePanel.transform, string.Empty, 25, Color.white, TextAnchor.UpperLeft);
+            Place(objectiveText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -58f), new Vector2(620f, 68f));
+
+            GameObject statusPanel = CreatePanel("Status panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.88f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -42f), new Vector2(430f, 152f));
+            suspicionText = CreateText("Suspicion label", statusPanel.transform, "怀疑度  00%", 20, new Color(0.77f, 0.84f, 0.87f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(suspicionText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -22f), new Vector2(260f, 28f));
+            clueCounterText = CreateText("Clue count", statusPanel.transform, "灵感  00 / 03", 18, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(clueCounterText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-22f, -22f), new Vector2(260f, 28f));
+
+            Image barBackground = CreateImage("Suspicion track", statusPanel.transform, new Color(0.08f, 0.12f, 0.15f, 1f));
+            Place(barBackground.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -70f), new Vector2(386f, 15f));
+            suspicionFill = CreateImage("Suspicion fill", barBackground.transform, new Color(0.16f, 0.78f, 0.75f, 1f));
+            RectTransform fillTransform = suspicionFill.rectTransform;
+            fillTransform.anchorMin = Vector2.zero;
+            fillTransform.anchorMax = Vector2.one;
+            fillTransform.offsetMin = Vector2.zero;
+            fillTransform.offsetMax = Vector2.zero;
+            fillTransform.pivot = new Vector2(0f, 0.5f);
+            Text barHelp = CreateText("Suspicion help", statusPanel.transform, "奔跑和可疑互动会吸引老师注意", 15, new Color(0.42f, 0.5f, 0.54f), TextAnchor.MiddleLeft);
+            Place(barHelp.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -102f), new Vector2(386f, 25f));
+
+            GameObject timerPanel = CreatePanel("Timer panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.88f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -42f), new Vector2(250f, 58f));
+            timerText = CreateText("Timer", timerPanel.transform, "T-MINUS  09:00", 22, new Color(0.9f, 0.94f, 0.94f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            Stretch(timerText.rectTransform, 8f, 8f, 5f, 5f);
+
+            GameObject cluePanel = CreatePanel("Clue panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.76f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(46f, -112f), new Vector2(340f, 220f));
+            Text clueHeading = CreateText("Clue heading", cluePanel.transform, "INSPIRATION  //  灵感", 17, new Color(0.36f, 0.79f, 0.78f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(clueHeading.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -20f), new Vector2(292f, 28f));
+            clueListText = CreateText("Clue list", cluePanel.transform, "尚未收集\n\n观察、询问、翻找。", 19, new Color(0.7f, 0.78f, 0.8f), TextAnchor.UpperLeft);
+            Place(clueListText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -58f), new Vector2(292f, 140f));
+
+            promptText = CreateText("Interaction prompt", hudRoot.transform, string.Empty, 24, new Color(1f, 0.76f, 0.25f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            Place(promptText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 142f), new Vector2(820f, 52f));
+            Outline promptOutline = promptText.gameObject.AddComponent<Outline>();
+            promptOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+            promptOutline.effectDistance = new Vector2(2f, -2f);
+            promptText.CrossFadeAlpha(0f, 0f, true);
+
+            Text hint = CreateText("Control hint", hudRoot.transform, "WASD 移动   ·   Shift 奔跑   ·   C 蹲伏   ·   E 交互   ·   Tab 笔记   ·   Esc 暂停", 17, new Color(0.45f, 0.54f, 0.58f), TextAnchor.MiddleLeft);
+            Place(hint.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(48f, 40f), new Vector2(1000f, 32f));
+
+            Text watermark = CreateText("Watermark", hudRoot.transform, "X4CE  /  2026", 17, new Color(0.95f, 0.61f, 0.16f, 0.7f), TextAnchor.MiddleRight);
+            Place(watermark.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-48f, 40f), new Vector2(300f, 32f));
+
+            BuildVignette(hudRoot.transform);
+        }
+
+        private void BuildNotebook()
+        {
+            notebookRoot = CreateFullPanel("Notebook overlay", canvas.transform, new Color(0f, 0f, 0f, 0.56f));
+            GameObject panel = CreatePanel("Notebook", notebookRoot.transform, new Color(0.025f, 0.055f, 0.075f, 0.98f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1020f, 700f));
+            CreatePanel("Notebook edge", panel.transform, new Color(0.97f, 0.63f, 0.16f, 1f), Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(7f, 0f));
+            Text heading = CreateText("Heading", panel.transform, "X4CE  //  EXAM NOTES", 30, new Color(0.43f, 0.91f, 0.86f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            Place(heading.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(40f, -36f), new Vector2(760f, 44f));
+            Text close = CreateText("Close hint", panel.transform, "TAB  关闭", 17, new Color(0.48f, 0.57f, 0.6f), TextAnchor.MiddleRight);
+            Place(close.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-40f, -36f), new Vector2(180f, 32f));
+            notebookText = CreateText("Notebook body", panel.transform, string.Empty, 23, new Color(0.85f, 0.89f, 0.9f), TextAnchor.UpperLeft);
+            Place(notebookText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(42f, -108f), new Vector2(930f, 545f));
+            notebookRoot.SetActive(false);
+        }
+
+        private void BuildPause()
+        {
+            pauseRoot = CreateFullPanel("Pause overlay", canvas.transform, new Color(0.005f, 0.012f, 0.02f, 0.82f));
+            Text pauseTitle = CreateText("Pause title", pauseRoot.transform, "PAUSED", 76, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            Place(pauseTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 150f), new Vector2(700f, 100f));
+            Text pauseChinese = CreateText("Pause Chinese", pauseRoot.transform, "考试暂停，脑子可以继续转", 23, new Color(0.67f, 0.76f, 0.79f), TextAnchor.MiddleCenter);
+            Place(pauseChinese.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 82f), new Vector2(600f, 40f));
+
+            Button resume = CreateButton("Resume", pauseRoot.transform, "继续考试  /  RESUME", new Vector2(320f, 64f), new Color(0.96f, 0.61f, 0.16f), new Color(0.03f, 0.045f, 0.06f));
+            Place(resume.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -12f), new Vector2(320f, 64f));
+            resume.onClick.AddListener(game.ResumeGame);
+
+            Button quit = CreateButton("Quit", pauseRoot.transform, "退出游戏", new Vector2(320f, 52f), new Color(0.1f, 0.14f, 0.17f), new Color(0.76f, 0.82f, 0.84f));
+            Place(quit.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -90f), new Vector2(320f, 52f));
+            quit.onClick.AddListener(game.QuitGame);
+            pauseRoot.SetActive(false);
+        }
+
+        private void BuildEnd()
+        {
+            endRoot = CreateFullPanel("Ending overlay", canvas.transform, new Color(0.006f, 0.012f, 0.02f, 0.93f));
+            GameObject line = CreatePanel("Ending top line", endRoot.transform, new Color(1f, 0.64f, 0.15f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 270f), new Vector2(116f, 4f));
+            line.GetComponent<Image>().raycastTarget = false;
+
+            Text kicker = CreateText("Ending kicker", endRoot.transform, "RESULT  /  NOI 2026", 19, new Color(0.41f, 0.82f, 0.8f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            Place(kicker.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 220f), new Vector2(700f, 32f));
+            endTitleText = CreateText("Ending title", endRoot.transform, "结局", 60, new Color(1f, 0.7f, 0.18f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            Place(endTitleText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 140f), new Vector2(1400f, 90f));
+            endBodyText = CreateText("Ending body", endRoot.transform, string.Empty, 25, new Color(0.82f, 0.88f, 0.89f), TextAnchor.UpperCenter);
+            Place(endBodyText.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -5f), new Vector2(1050f, 220f));
+
+            Button restart = CreateButton("Restart", endRoot.transform, "再来一次  /  R", new Vector2(300f, 64f), new Color(0.96f, 0.61f, 0.16f), new Color(0.03f, 0.045f, 0.06f));
+            Place(restart.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-170f, -240f), new Vector2(300f, 64f));
+            restart.onClick.AddListener(game.RestartGame);
+
+            Button quit = CreateButton("Quit", endRoot.transform, "退出", new Vector2(220f, 64f), new Color(0.1f, 0.14f, 0.17f), new Color(0.78f, 0.84f, 0.86f));
+            Place(quit.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(180f, -240f), new Vector2(220f, 64f));
+            quit.onClick.AddListener(game.QuitGame);
+            endRoot.SetActive(false);
+        }
+
+        private void BuildToast()
+        {
+            toastRoot = CreatePanel("Toast", canvas.transform, new Color(0.02f, 0.045f, 0.06f, 0.94f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 220f), new Vector2(1040f, 86f));
+            RectTransform rect = toastRoot.GetComponent<RectTransform>();
+            toastCanvasGroup = toastRoot.AddComponent<CanvasGroup>();
+            toastText = CreateText("Toast text", toastRoot.transform, string.Empty, 22, Color.white, TextAnchor.MiddleCenter);
+            Stretch(toastText.rectTransform, 28f, 28f, 12f, 12f);
+            toastRoot.GetComponent<Image>().raycastTarget = false;
+            toastText.raycastTarget = false;
+            toastRoot.SetActive(false);
+        }
+
+        private void BuildFlash()
+        {
+            flashRoot = CreateFullPanel("Transition flash", canvas.transform, new Color(0.12f, 0.94f, 0.87f, 0f));
+            flashRoot.GetComponent<Image>().raycastTarget = false;
+            flashCanvasGroup = flashRoot.AddComponent<CanvasGroup>();
+            flashCanvasGroup.alpha = 0f;
+            flashCanvasGroup.blocksRaycasts = false;
+        }
+
+        private void BuildVignette(Transform parent)
+        {
+            Texture2D texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            texture.name = "Runtime vignette";
+            for (int y = 0; y < texture.height; y++)
+            {
+                for (int x = 0; x < texture.width; x++)
+                {
+                    float nx = (x / (float)(texture.width - 1) - 0.5f) * 2f;
+                    float ny = (y / (float)(texture.height - 1) - 0.5f) * 2f;
+                    float distance = Mathf.Sqrt(nx * nx + ny * ny);
+                    float alpha = Mathf.SmoothStep(0f, 0.72f, Mathf.InverseLerp(0.35f, 1.1f, distance));
+                    texture.SetPixel(x, y, new Color(0f, 0.01f, 0.02f, alpha));
+                }
+            }
+            texture.Apply();
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, 64f, 64f), new Vector2(0.5f, 0.5f));
+            Image vignette = CreateImage("Vignette", parent, Color.white);
+            vignette.sprite = sprite;
+            vignette.type = Image.Type.Simple;
+            vignette.raycastTarget = false;
+            RectTransform rect = vignette.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private IEnumerator ToastRoutine()
+        {
+            yield return new WaitForSeconds(3.2f);
+            float elapsed = 0f;
+            while (elapsed < 0.35f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                toastCanvasGroup.alpha = 1f - elapsed / 0.35f;
+                yield return null;
+            }
+            toastRoot.SetActive(false);
+            toastRoutine = null;
+        }
+
+        private IEnumerator FlashRoutine()
+        {
+            flashCanvasGroup.alpha = 1f;
+            yield return new WaitForSecondsRealtime(0.06f);
+            float elapsed = 0f;
+            while (elapsed < 0.45f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                flashCanvasGroup.alpha = Mathf.Clamp01(1f - elapsed / 0.45f);
+                yield return null;
+            }
+            flashCanvasGroup.alpha = 0f;
+        }
+
+        private Text CreateText(string objectName, Transform parent, string content, int size, Color color, TextAnchor alignment, FontStyle style = FontStyle.Normal)
+        {
+            GameObject textObject = new GameObject(objectName);
+            textObject.transform.SetParent(parent, false);
+            Text text = textObject.AddComponent<Text>();
+            text.font = font;
+            text.text = content;
+            text.fontSize = size;
+            text.color = color;
+            text.alignment = alignment;
+            text.fontStyle = style;
+            text.supportRichText = true;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.lineSpacing = 1.08f;
+            return text;
+        }
+
+        private Button CreateButton(string objectName, Transform parent, string label, Vector2 size, Color background, Color foreground)
+        {
+            GameObject buttonObject = new GameObject(objectName);
+            buttonObject.transform.SetParent(parent, false);
+            Image image = buttonObject.AddComponent<Image>();
+            image.color = background;
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            ColorBlock colors = button.colors;
+            colors.normalColor = background;
+            colors.highlightedColor = Color.Lerp(background, Color.white, 0.2f);
+            colors.pressedColor = Color.Lerp(background, Color.black, 0.17f);
+            colors.selectedColor = background;
+            colors.disabledColor = new Color(0.25f, 0.27f, 0.29f, 0.7f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+            RectTransform rect = buttonObject.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+
+            Text text = CreateText("Label", buttonObject.transform, label, 21, foreground, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Stretch(text.rectTransform, 12f, 12f, 4f, 4f);
+            return button;
+        }
+
+        private GameObject CreateFullPanel(string objectName, Transform parent, Color color)
+        {
+            GameObject panel = new GameObject(objectName);
+            panel.transform.SetParent(parent, false);
+            Image image = panel.AddComponent<Image>();
+            image.color = color;
+            RectTransform rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return panel;
+        }
+
+        private GameObject CreatePanel(
+            string objectName,
+            Transform parent,
+            Color color,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2 pivot,
+            Vector2 anchoredPosition,
+            Vector2 size)
+        {
+            GameObject panel = new GameObject(objectName);
+            panel.transform.SetParent(parent, false);
+            Image image = panel.AddComponent<Image>();
+            image.color = color;
+            Place(panel.GetComponent<RectTransform>(), anchorMin, anchorMax, pivot, anchoredPosition, size);
+            return panel;
+        }
+
+        private Image CreateImage(string objectName, Transform parent, Color color)
+        {
+            GameObject imageObject = new GameObject(objectName);
+            imageObject.transform.SetParent(parent, false);
+            Image image = imageObject.AddComponent<Image>();
+            image.color = color;
+            return image;
+        }
+
+        private static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPosition, Vector2 size)
+        {
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = pivot;
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+        }
+
+        private static void Stretch(RectTransform rect, float left, float right, float bottom, float top)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(left, bottom);
+            rect.offsetMax = new Vector2(-right, -top);
+        }
+    }
+}
