@@ -184,7 +184,7 @@ namespace NOIChaos
 
             GameSession session = game.Session;
             objectiveText.text = session.Objective;
-            clueCounterText.text = $"灵感 {session.ClueCount:00}/{session.MaxClues:00}  ·  抄录 {session.CopiedAnswerCount:00}/{session.MaxCopiedAnswers:00}";
+            clueCounterText.text = $"灵感 {session.ClueCount}/{session.MaxClues} · 抄录 {session.CopiedAnswerCount}/{session.MaxCopiedAnswers}";
 
             float suspicion = session.Suspicion / 100f;
             suspicionFill.rectTransform.anchorMax = new Vector2(suspicion, 1f);
@@ -192,8 +192,7 @@ namespace NOIChaos
                 new Color(0.16f, 0.78f, 0.75f),
                 new Color(1f, 0.22f, 0.16f),
                 Mathf.Clamp01(suspicion * 1.25f));
-            suspicionText.text = $"怀疑度  {Mathf.RoundToInt(session.Suspicion):00}%";
-            suspicionText.color = suspicion > 0.72f ? new Color(1f, 0.45f, 0.34f) : new Color(0.77f, 0.84f, 0.87f);
+            RefreshDetectionStatus(session);
             if (controlHintText != null)
             {
                 controlHintText.text = session.IsSeated
@@ -237,6 +236,34 @@ namespace NOIChaos
             int seconds = Mathf.FloorToInt(remaining % 60f);
             timerText.text = $"T-MINUS  {minutes:00}:{seconds:00}";
             timerText.color = remaining < 60f ? new Color(1f, 0.31f, 0.25f) : new Color(0.9f, 0.94f, 0.94f);
+            RefreshDetectionStatus(game.Session);
+        }
+
+        private void RefreshDetectionStatus(GameSession session)
+        {
+            if (suspicionText == null)
+            {
+                return;
+            }
+
+            int suspicionPercent = Mathf.RoundToInt(session.Suspicion);
+            if (session.IsSeated && game.Player != null && game.Player.IsConcealedAtSeat)
+            {
+                suspicionText.text = "座位掩护 · 安全";
+                suspicionText.color = new Color(0.32f, 0.94f, 0.76f);
+            }
+            else if (session.IsSeated)
+            {
+                suspicionText.text = $"暴露中 · {suspicionPercent:00}%";
+                suspicionText.color = new Color(1f, 0.66f, 0.22f);
+            }
+            else
+            {
+                suspicionText.text = $"怀疑度  {suspicionPercent:00}%";
+                suspicionText.color = session.Suspicion > 72f
+                    ? new Color(1f, 0.45f, 0.34f)
+                    : new Color(0.77f, 0.84f, 0.87f);
+            }
         }
 
         private void RefreshNotebook()
@@ -558,9 +585,9 @@ namespace NOIChaos
 
             GameObject statusPanel = CreatePanel("Status panel", hudRoot.transform, new Color(0.025f, 0.05f, 0.072f, 0.88f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-46f, -42f), new Vector2(430f, 152f));
             suspicionText = CreateText("Suspicion label", statusPanel.transform, "怀疑度  00%", 20, new Color(0.77f, 0.84f, 0.87f), TextAnchor.MiddleLeft, FontStyle.Bold);
-            Place(suspicionText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -22f), new Vector2(260f, 28f));
-            clueCounterText = CreateText("Clue count", statusPanel.transform, "灵感 00/03 · 抄录 00/04", 16, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleRight, FontStyle.Bold);
-            Place(clueCounterText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -22f), new Vector2(320f, 28f));
+            Place(suspicionText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -22f), new Vector2(190f, 28f));
+            clueCounterText = CreateText("Clue count", statusPanel.transform, "灵感 0/3 · 抄录 0/4", 16, new Color(1f, 0.69f, 0.2f), TextAnchor.MiddleRight, FontStyle.Bold);
+            Place(clueCounterText.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -22f), new Vector2(210f, 28f));
 
             Image barBackground = CreateImage("Suspicion track", statusPanel.transform, new Color(0.08f, 0.12f, 0.15f, 1f));
             Place(barBackground.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(22f, -70f), new Vector2(386f, 15f));

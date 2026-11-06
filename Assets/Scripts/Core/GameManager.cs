@@ -135,10 +135,13 @@ namespace NOIChaos
             UI.ShowHUD();
             Player.SetControl(true);
             PlayerCamera.SetControl(true);
+            GameObject playerStation = GameObject.Find("Your station");
+            Transform playerChair = playerStation != null ? playerStation.transform.Find("Chair") : null;
+            Player.SitAt(playerChair);
             SetCursorLocked(true);
-            UI.Toast("08:59:59  //  第一题 Accepted", new Color(0.45f, 1f, 0.72f));
-            ToastLater("发光椅子就是你的 047 号座位：按 E 或鼠标左键坐下。", 2.6f);
-            ToastLater("坐下后移动会失效：F 侧头偷看，G 扔纸团，E 站起。", 5.2f);
+            UI.Toast("你已经在自己的 047 号座位坐好", new Color(0.45f, 1f, 0.72f));
+            ToastLater("座位掩护生效：普通巡场扫描不会增加怀疑度。", 2.6f);
+            ToastLater("E/左键站起 · F 侧头偷看 · G 扔纸团 · 移动和拳击需先站起", 5.2f);
             transitionLocked = false;
         }
 
