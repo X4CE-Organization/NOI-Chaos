@@ -64,6 +64,27 @@ namespace NOIChaos.Editor
             Debug.Log("[NOI Chaos] macOS build complete: " + options.locationPathName);
         }
 
+        [MenuItem("NOI Chaos/Build Windows App")]
+        public static void BuildWindowsApp()
+        {
+            EnsureRenderAssets();
+            Directory.CreateDirectory("Builds/Windows");
+            BuildPlayerOptions options = new BuildPlayerOptions
+            {
+                scenes = new[] { MainScenePath },
+                locationPathName = "Builds/Windows/NOI Chaos.exe",
+                target = BuildTarget.StandaloneWindows64,
+                options = BuildOptions.StrictMode
+            };
+
+            UnityEditor.Build.Reporting.BuildReport report = BuildPipeline.BuildPlayer(options);
+            if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
+            {
+                throw new IOException("Windows build failed: " + report.summary.result);
+            }
+            Debug.Log("[NOI Chaos] Windows build complete: " + options.locationPathName);
+        }
+
         private static void EnsureRenderAssets()
         {
             Directory.CreateDirectory("Assets/Resources/NOI");

@@ -38,7 +38,55 @@
 
 `NOI Chaos > Rebuild Main Scene`
 
-在本机生成 macOS 可执行版本：
+### Windows
+
+Unity 版本必须为 **2022.3.62f3c1**。建议在 Windows 上构建；如果在 macOS 上交叉编译 Windows 版本，请在 Unity Hub 中为这个编辑器版本安装 **Windows Build Support** 模块。
+
+1. 使用 Unity Hub 打开按 [Windows 安装步骤](#windows-安装步骤) 准备好的项目。
+2. 等待脚本编译完成，确认 Console 没有红色报错。
+3. 在菜单栏执行 `NOI Chaos > Build Windows App`。
+4. 构建结果位于 `Builds/Windows/NOI Chaos.exe`。
+5. 发布或运行时要保留整个 `Builds/Windows/` 文件夹，不要只复制 `.exe` 文件。
+
+也可以从 Windows PowerShell 命令行构建：
+
+```powershell
+$Unity = "C:\Program Files\Unity\Hub\Editor\2022.3.62f3c1\Editor\Unity.exe"
+$Project = "C:\Path\To\NOI Chaos"
+
+& $Unity -batchmode -nographics -quit `
+  -projectPath $Project `
+  -executeMethod NOIChaos.Editor.ProjectBootstrapper.BuildWindowsApp `
+  -logFile "Logs\windows-build.log"
+```
+
+如果 `Main.unity` 缺失或需要重新生成场景，先运行一次下方命令，再执行 Windows 构建：
+
+```powershell
+& $Unity -batchmode -nographics -quit `
+  -projectPath $Project `
+  -executeMethod NOIChaos.Editor.ProjectBootstrapper.SetupProject `
+  -logFile "Logs\setup.log"
+```
+
+#### Windows 安装步骤
+
+1. 安装 [Unity Hub](https://unity.com/download)。
+2. 在 Unity Hub 的 **Installs** 页面安装 Unity `2022.3.62f3c1`。
+3. 同一安装项中启用 **Windows Build Support**。
+4. 克隆仓库：
+
+   ```powershell
+   git clone https://github.com/X4CE-Organization/NOI-Chaos.git
+   cd NOI-Chaos
+   ```
+
+5. 在 Unity Hub 中选择 **Add project from disk**，打开仓库根目录。
+6. 打开 `Assets/Scenes/Main.unity` 并点击 Play，或使用上面的构建菜单生成 Windows 可执行版本。
+
+### macOS
+
+在 macOS 上生成可执行版本：
 
 `NOI Chaos > Build macOS App`
 
@@ -53,6 +101,17 @@ UNITY="/Applications/Unity/Hub/Editor/2022.3.62f3c1/Unity.app/Contents/MacOS/Uni
   -executeMethod NOIChaos.Editor.ProjectBootstrapper.SetupProject \
   -logFile "Logs/setup.log"
 ```
+
+生成 macOS 可执行版本：
+
+```bash
+"$UNITY" -batchmode -nographics -quit \
+  -projectPath "/path/to/NOI Chaos" \
+  -executeMethod NOIChaos.Editor.ProjectBootstrapper.BuildMacApp \
+  -logFile "Logs/macos-build.log"
+```
+
+`Builds/Windows/` 和 `Builds/macOS/` 都被 Git 忽略；源码仓库只保存工程，不保存平台构建产物。
 
 ## 操作
 
