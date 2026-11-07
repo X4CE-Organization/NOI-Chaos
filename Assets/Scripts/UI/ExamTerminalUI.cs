@@ -21,6 +21,8 @@ namespace NOIChaos
         private InputField codeInput;
         private Text verdictText;
         private Text thresholdText;
+        private Text earlySubmitLabel;
+        private Image earlySubmitImage;
         private ScrollRect problemScroll;
         private ScrollRect codeScroll;
         private RectTransform problemContent;
@@ -34,6 +36,7 @@ namespace NOIChaos
         private bool judgeRunning;
         private int loadedSeed = int.MinValue;
         private bool codeLayoutDirty;
+        private float earlySubmitConfirmUntil;
 
         public bool IsOpen => root != null && root.activeSelf;
         public bool IsCodeEditorReady => codeInput != null;
@@ -75,6 +78,7 @@ namespace NOIChaos
             game.PlayerCamera.SetControl(false);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            ResetEarlySubmitButton();
             RefreshAll();
         }
 
@@ -115,6 +119,10 @@ namespace NOIChaos
             if (Input.GetKeyDown(KeyCode.Escape) && !judgeRunning)
             {
                 Close();
+            }
+            if (earlySubmitConfirmUntil > 0f && Time.realtimeSinceStartup > earlySubmitConfirmUntil)
+            {
+                ResetEarlySubmitButton();
             }
         }
 
@@ -170,6 +178,23 @@ namespace NOIChaos
                 new Color(0.53f, 0.61f, 0.63f),
                 TextAnchor.UpperLeft);
             Place(rules.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(22f, 26f), new Vector2(292f, 210f));
+            Button earlySubmit = CreateButton(
+                "Early submit",
+                left.transform,
+                "提前交卷  /  FINAL SUBMIT",
+                new Vector2(292f, 58f),
+                new Color(0.48f, 0.16f, 0.12f),
+                Color.white);
+            Place(
+                earlySubmit.GetComponent<RectTransform>(),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(22f, -354f),
+                new Vector2(292f, 58f));
+            earlySubmit.onClick.AddListener(OnEarlySubmitClicked);
+            earlySubmitLabel = earlySubmit.GetComponentInChildren<Text>();
+            earlySubmitImage = earlySubmit.GetComponent<Image>();
 
             GameObject center = CreatePanel("Problem panel", root.transform, new Color(0.02f, 0.039f, 0.052f, 1f), new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(404f, -58f), new Vector2(710f, -138f));
             problemTitleText = CreateText("Problem title", center.transform, string.Empty, 27, new Color(1f, 0.72f, 0.22f), TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -478,6 +503,39 @@ namespace NOIChaos
             {
                 codeLayoutDirty = true;
             }
+        }
+
+        private void OnEarlySubmitClicked()
+        {
+            if (judgeRunning)
+            {
+                verdictText.text = "编译评测正在进行，请等待结果后再交卷。";
+                verdictText.color = new Color(1f, 0.66f, 0.26f);
+                return;
+            }
+
+            if (Time.realtimeSinceStartup <= earlySubmitConfirmUntil)
+            {
+                game.SubmitInsight();
+                return;
+            }
+
+            earlySubmitConfirmUntil = Time.realtimeSinceStartup + 3.5f;
+            earlySubmitLabel.text = "确认交卷？  再点一次";
+            earlySubmitImage.color = new Color(0.78f, 0.19f, 0.12f);
+            verdictText.text = "提前交卷将按当前每题最高分结算，未作答题目计 0 分。";
+            verdictText.color = new Color(1f, 0.66f, 0.26f);
+        }
+
+        private void ResetEarlySubmitButton()
+        {
+            if (earlySubmitLabel == null)
+            {
+                return;
+            }
+            earlySubmitConfirmUntil = 0f;
+            earlySubmitLabel.text = "提前交卷  /  FINAL SUBMIT";
+            earlySubmitImage.color = new Color(0.48f, 0.16f, 0.12f);
         }
 
         private void LateUpdate()
