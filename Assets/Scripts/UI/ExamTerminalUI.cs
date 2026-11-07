@@ -33,6 +33,7 @@ namespace NOIChaos
         private bool initialized;
         private bool judgeRunning;
         private int loadedSeed = int.MinValue;
+        private bool codeLayoutDirty;
 
         public bool IsOpen => root != null && root.activeSelf;
         public bool IsCodeEditorReady => codeInput != null;
@@ -188,7 +189,7 @@ namespace NOIChaos
             codeInput.textComponent = codeText;
             codeInput.lineType = InputField.LineType.MultiLineNewline;
             codeInput.contentType = InputField.ContentType.Standard;
-            codeInput.characterLimit = 200000;
+            codeInput.characterLimit = 1000000;
             codeInput.caretColor = new Color(0.35f, 1f, 0.85f);
             codeInput.selectionColor = new Color(0.15f, 0.55f, 0.55f, 0.45f);
             codeInput.onValueChanged.AddListener(OnCodeChanged);
@@ -351,9 +352,7 @@ namespace NOIChaos
             {
                 codeInput.SetTextWithoutNotify(editorCode[selectedProblemIndex]);
             }
-            int lineCount = Mathf.Max(1, code.Split('\n').Length);
-            codeContent.sizeDelta = new Vector2(0f, Mathf.Max(640f, codeInput.text.Split('\n').Length * 21f + 20f));
-            codeScroll.verticalNormalizedPosition = 1f;
+            UpdateCodeContentHeight(true);
 
             int best = game.Session.ExamRun.GetProblemState(selectedProblemIndex).BestScore;
             verdictText.text = LocalCppJudge.IsCompilerAvailable
@@ -477,8 +476,39 @@ namespace NOIChaos
             }
             if (codeContent != null)
             {
-                codeContent.sizeDelta = new Vector2(0f, Mathf.Max(640f, code.Split('\n').Length * 21f + 20f));
+                codeLayoutDirty = true;
             }
+        }
+
+        private void LateUpdate()
+        {
+            if (IsOpen && codeLayoutDirty)
+            {
+                UpdateCodeContentHeight(false);
+            }
+        }
+
+        private void UpdateCodeContentHeight(bool resetScroll)
+        {
+            if (codeContent == null || codeText == null)
+            {
+                return;
+            }
+
+            float previousScroll = codeScroll.verticalNormalizedPosition;
+            Canvas.ForceUpdateCanvases();
+            int lineCount = Mathf.Max(1, codeInput.text.Split('\n').Length);
+            float requiredHeight = Mathf.Max(
+                codeScroll.viewport.rect.height,
+                codeText.preferredHeight + 28f,
+                lineCount * 21f + 20f);
+            codeContent.sizeDelta = new Vector2(0f, requiredHeight);
+            Canvas.ForceUpdateCanvases();
+            codeScroll.verticalNormalizedPosition = resetScroll ? 1f : Mathf.Clamp01(previousScroll);
+            codeHeaderText.text = LocalCppJudge.IsCompilerAvailable
+                ? $"C++14 CODE EDITOR  ·  {lineCount} 行  ·  本地编译"
+                : $"CODE LIBRARY  ·  {lineCount} 行  ·  离线兼容模式";
+            codeLayoutDirty = false;
         }
 
         private void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 position, Vector2 size)
@@ -590,6 +620,35 @@ namespace NOIChaos
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 34f;
+
+            GameObject scrollbarObject = new GameObject("Scrollbar");
+            scrollbarObject.transform.SetParent(scrollObject.transform, false);
+            Image scrollbarBackground = scrollbarObject.AddComponent<Image>();
+            scrollbarBackground.color = new Color(0.05f, 0.1f, 0.12f, 0.92f);
+            RectTransform scrollbarRect = scrollbarObject.GetComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1f, 0f);
+            scrollbarRect.anchorMax = new Vector2(1f, 1f);
+            scrollbarRect.pivot = new Vector2(1f, 0.5f);
+            scrollbarRect.anchoredPosition = new Vector2(-2f, 0f);
+            scrollbarRect.sizeDelta = new Vector2(10f, 0f);
+
+            GameObject handleObject = new GameObject("Handle");
+            handleObject.transform.SetParent(scrollbarObject.transform, false);
+            Image handleImage = handleObject.AddComponent<Image>();
+            handleImage.color = new Color(0.22f, 0.74f, 0.72f, 0.92f);
+            RectTransform handleRect = handleObject.GetComponent<RectTransform>();
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.offsetMin = new Vector2(2f, 2f);
+            handleRect.offsetMax = new Vector2(-2f, -2f);
+
+            Scrollbar scrollbar = scrollbarObject.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handleRect;
+            scrollbar.targetGraphic = handleImage;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scroll.verticalScrollbar = scrollbar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            scroll.verticalScrollbarSpacing = 0f;
             return text;
         }
 
